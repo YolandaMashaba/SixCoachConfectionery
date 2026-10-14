@@ -1,8 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
     <style name="Base.Theme.SixCoachConfectionery" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+        <!-- Customize your theme colors -->
+        <item name="colorPrimary">@color/bakery_brown</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorPrimaryContainer">@color/bakery_tan_light</item>
+        <item name="colorOnPrimaryContainer">@color/bakery_brown_dark</item>
+        <item name="colorSecondary">@color/bakery_brown_light</item>
+        <item name="android:windowBackground">@color/bakery_bg</item>
+        <item name="android:statusBarColor">@color/bakery_brown</item>
     </style>
 
     <style name="Theme.SixCoachConfectionery" parent="Base.Theme.SixCoachConfectionery" />

@@ -2,4 +2,30 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- Bakery Theme Colors -->
+    <color name="bakery_brown">#7C3E1D</color>
+    <color name="bakery_brown_dark">#4A230C</color>
+    <color name="bakery_brown_light">#A06236</color>
+    <color name="bakery_brown_soft">#FAF0E6</color>
+    <color name="bakery_tan">#E5D4C0</color>
+    <color name="bakery_tan_light">#F5EEE6</color>
+
+    <color name="bakery_bg">#FBF7F2</color>
+    <color name="bakery_card_bg">#FFFFFF</color>
+    <color name="bakery_card_border">#EAE1D7</color>
+
+    <color name="bakery_text_primary">#4A230C</color>
+    <color name="bakery_text_secondary">#8C7A6B</color>
+    <color name="bakery_text_muted">#A39485</color>
+
+    <color name="bakery_green">#16A34A</color>
+    <color name="bakery_green_light">#DCFCE7</color>
+    <color name="bakery_green_border">#86EFAC</color>
+
+    <color name="bakery_red">#DC2626</color>
+    <color name="bakery_red_light">#FEE2E2</color>
+
+    <color name="bakery_gold">#D97706</color>
+    <color name="bakery_gold_light">#FEF3C7</color>
 </resources>
