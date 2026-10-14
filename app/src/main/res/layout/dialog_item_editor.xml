@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp"
+    android:background="@drawable/bg_card_rounded">
+
+    <TextView
+        android:id="@+id/tvEditorTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Add Bakery Item"
+        android:textColor="@color/bakery_text_primary"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <com.example.sixcoachconfectionery.ui.controls.CustomInputField
+        android:id="@+id/inputItemName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp" />
+
+    <com.example.sixcoachconfectionery.ui.controls.CustomInputField
+        android:id="@+id/inputItemCategory"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <com.example.sixcoachconfectionery.ui.controls.CustomInputField
+        android:id="@+id/inputItemPrice"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <com.example.sixcoachconfectionery.ui.controls.CustomInputField
+        android:id="@+id/inputItemStock"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <TextView
+        android:id="@+id/tvEditorError"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/bakery_red"
+        android:textSize="13sp"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:orientation="horizontal"
+        android:gravity="end">
+
+        <Button
+            android:id="@+id/btnCancelItem"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:text="Cancel"
+            android:textColor="@color/bakery_brown"
+            android:layout_marginEnd="8dp" />
+
+        <Button
+            android:id="@+id/btnSaveItem"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:text="Save Item"
+            android:textColor="@color/white"
+            android:backgroundTint="@color/bakery_brown" />
+
+    </LinearLayout>
+
+</LinearLayout>
