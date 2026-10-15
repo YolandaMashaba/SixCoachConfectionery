@@ -23,63 +23,86 @@ class OrderRepository(
         payment: Payment,
         kitchenOrder: KitchenOrder,
         kitchenItems: List<KitchenOrderItem>
-    ) {
-        val orderId = order.orderId.ifEmpty { ordersCollection.document().id }
-        val orderToSave = order.copy(orderId = orderId)
+    ): Result<Unit> {
+        return try {
+            val orderId = order.orderId.ifEmpty { ordersCollection.document().id }
+            val orderToSave = order.copy(orderId = orderId)
 
-        val paymentId = payment.paymentId.ifEmpty { paymentsCollection.document().id }
-        val paymentToSave = payment.copy(paymentId = paymentId, orderId = orderId)
+            val paymentId = payment.paymentId.ifEmpty { paymentsCollection.document().id }
+            val paymentToSave = payment.copy(paymentId = paymentId, orderId = orderId)
 
-        val kitchenOrderId = kitchenOrder.kitchenOrderId.ifEmpty { kitchenOrdersCollection.document().id }
-        val kitchenOrderToSave = kitchenOrder.copy(kitchenOrderId = kitchenOrderId, orderId = orderId)
+            val kitchenOrderId = kitchenOrder.kitchenOrderId.ifEmpty { kitchenOrdersCollection.document().id }
+            val kitchenOrderToSave = kitchenOrder.copy(kitchenOrderId = kitchenOrderId, orderId = orderId)
 
-        val batch = firestore.batch()
+            val batch = firestore.batch()
 
-        // Save Order
-        batch.set(ordersCollection.document(orderId), orderToSave)
+            // Save Order
+            batch.set(ordersCollection.document(orderId), orderToSave)
 
-        // Save Order Items
-        for (item in items) {
-            val itemId = item.orderItemId.ifEmpty { orderItemsCollection.document().id }
-            val itemToSave = item.copy(orderItemId = itemId, orderId = orderId)
-            batch.set(orderItemsCollection.document(itemId), itemToSave)
+            // Save Order Items
+            for (item in items) {
+                val itemId = item.orderItemId.ifEmpty { orderItemsCollection.document().id }
+                val itemToSave = item.copy(orderItemId = itemId, orderId = orderId)
+                batch.set(orderItemsCollection.document(itemId), itemToSave)
+            }
+
+            // Save Payment
+            batch.set(paymentsCollection.document(paymentId), paymentToSave)
+
+            // Save Kitchen Order
+            batch.set(kitchenOrdersCollection.document(kitchenOrderId), kitchenOrderToSave)
+
+            // Save Kitchen Order Items
+            for (kItem in kitchenItems) {
+                val kItemId = kItem.kitchenOrderItemId.ifEmpty { kitchenOrderItemsCollection.document().id }
+                val kItemToSave = kItem.copy(kitchenOrderItemId = kItemId, kitchenOrderId = kitchenOrderId)
+                batch.set(kitchenOrderItemsCollection.document(kItemId), kItemToSave)
+            }
+
+            batch.commit().await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
+    }
 
-        // Save Payment
-        batch.set(paymentsCollection.document(paymentId), paymentToSave)
-
-        // Save Kitchen Order
-        batch.set(kitchenOrdersCollection.document(kitchenOrderId), kitchenOrderToSave)
-
-        // Save Kitchen Order Items
-        for (kItem in kitchenItems) {
-            val kItemId = kItem.kitchenOrderItemId.ifEmpty { kitchenOrderItemsCollection.document().id }
-            val kItemToSave = kItem.copy(kitchenOrderItemId = kItemId, kitchenOrderId = kitchenOrderId)
-            batch.set(kitchenOrderItemsCollection.document(kItemId), kItemToSave)
+    suspend fun getOrders(): Result<List<Order>> {
+        return try {
+            val snapshot = ordersCollection.get().await()
+            Result.success(snapshot.toObjects(Order::class.java))
+        } catch (e: Exception) {
+            Result.failure(e)
         }
-
-        batch.commit().await()
     }
 
-    suspend fun getOrders(): List<Order> {
-        val snapshot = ordersCollection.get().await()
-        return snapshot.toObjects(Order::class.java)
-    }
-
-    suspend fun updateOrderStatus(orderId: String, newStatus: String) {
-        ordersCollection.document(orderId).update("status", newStatus).await()
-    }
-
-    suspend fun getKitchenOrders(): List<KitchenOrder> {
-        val snapshot = kitchenOrdersCollection.whereEqualTo("status", "Pending").get().await()
-        return snapshot.toObjects(KitchenOrder::class.java)
-    }
-
-    suspend fun updateKitchenOrderStatus(kitchenOrderId: String, newStatus: String) {
-        val updateMap = mutableMapOf<String, Any>("status" to newStatus)
-        if (newStatus == "Completed") {
-            updateMap["completedAt"] = System.currentTimeMillis()
+    suspend fun updateOrderStatus(orderId: String, newStatus: String): Result<Unit> {
+        return try {
+            ordersCollection.document(orderId).update("status", newStatus).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
-        kitchenOrdersCollection.document(kitchenOrderId).update(updateMap).await()
+    }
+
+    suspend fun getKitchenOrders(): Result<List<KitchenOrder>> {
+        return try {
+            val snapshot = kitchenOrdersCollection.whereEqualTo("status", "Pending").get().await()
+            Result.success(snapshot.toObjects(KitchenOrder::class.java))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateKitchenOrderStatus(kitchenOrderId: String, newStatus: String): Result<Unit> {
+        return try {
+            val updateMap = mutableMapOf<String, Any>("status" to newStatus)
+            if (newStatus == "Completed") {
+                updateMap["completedAt"] = System.currentTimeMillis()
+            }
+            kitchenOrdersCollection.document(kitchenOrderId).update(updateMap).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }
