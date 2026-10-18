@@ -81,4 +81,40 @@ class AuthRepository(
             Result.failure(e)
         }
     }
+
+    /**
+     * Programmatically seeds the default Admin account (email: admin@email.com, password: admin@123)
+     * in Firebase Authentication and ensures its Firestore document exists with isAdmin = true and role = "Admin".
+     */
+    suspend fun seedAdminAccount(adminEmail: String = "admin@email.com", adminPass: String = "admin@123"): Result<UserProfile> {
+        return try {
+            val signInResult = try {
+                auth.signInWithEmailAndPassword(adminEmail, adminPass).await()
+                true
+            } catch (e: Exception) {
+                false
+            }
+
+            val firebaseUser = if (signInResult) {
+                auth.currentUser
+            } else {
+                val createResult = auth.createUserWithEmailAndPassword(adminEmail, adminPass).await()
+                createResult.user
+            } ?: throw IllegalStateException("Failed to seed admin user auth")
+
+            val adminProfile = UserProfile(
+                uid = firebaseUser.uid,
+                email = adminEmail,
+                username = "SystemAdmin",
+                role = "Admin",
+                isAdmin = true,
+                createdAt = System.currentTimeMillis()
+            )
+
+            usersCollection.document(firebaseUser.uid).set(adminProfile).await()
+            Result.success(adminProfile)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
