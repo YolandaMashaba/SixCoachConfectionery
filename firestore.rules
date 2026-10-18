@@ -11,26 +11,34 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Staff verification via dedicated staff collection lookup
+    // Staff verification via dedicated staff collection or users collection lookup
     function isStaff() {
       return isAuthenticated() &&
-        exists(/databases/$(database)/documents/staff/$(request.auth.uid));
+        (exists(/databases/$(database)/documents/staff/$(request.auth.uid)) ||
+         exists(/databases/$(database)/documents/users/$(request.auth.uid)));
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
     function hasStaffRole(role) {
       return isStaff() &&
-        get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role == role;
+        (get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role == role ||
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role);
     }
 
-    // 1. Categories & Products
+    // 1. Categories & Products (Inventory Control: only Admin can write/add/update/delete menu items)
     match /categories/{categoryId} {
       allow read: if true;
-      allow write: if isStaff();
+      allow write: if isAdmin();
     }
 
     match /products/{productId} {
       allow read: if true;
-      allow write: if isStaff() &&
+      allow write: if isAdmin() &&
         request.resource.data.price is number && request.resource.data.price >= 0 &&
         request.resource.data.costPrice is number && request.resource.data.costPrice >= 0 &&
         request.resource.data.productName is string && request.resource.data.productName.size() > 0 &&
@@ -42,10 +50,16 @@ service cloud.firestore {
       allow read, write: if isOwner(customerId) || isStaff();
     }
 
-    // 3. Staff
+    // 3. Staff & Users Collection Schema
     match /staff/{staffId} {
       allow read: if isAuthenticated();
-      allow write: if isOwner(staffId) || hasStaffRole("Admin");
+      allow write: if isOwner(staffId) || isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update, delete: if isOwner(userId) || isAdmin();
     }
 
     // 4. Orders & Order Items
@@ -56,7 +70,7 @@ service cloud.firestore {
         request.resource.data.totalAmount is number && request.resource.data.totalAmount >= 0 &&
         request.resource.data.orderDate is number;
       allow update: if isStaff() || (isAuthenticated() && resource.data.customerId == request.auth.uid && resource.data.status == "Pending");
-      allow delete: if isStaff();
+      allow delete: if isAdmin();
     }
 
     match /order_items/{itemId} {
@@ -81,7 +95,7 @@ service cloud.firestore {
       allow read, write: if isStaff() || isAuthenticated();
     }
 
-    // 7. Inventory Transactions & Sales Analytics (Staff only)
+    // 7. Inventory Transactions & Sales Analytics (Staff / Admin access)
     match /inventory_transactions/{transactionId} {
       allow read, write: if isStaff();
     }
