@@ -17,4 +17,25 @@ class AuthRepositoryTest {
         val result = authRepository.getAllUsers()
         assertNotNull(result)
     }
+
+    @Test
+    fun testRegisterStaffAccountUpdatesDatabase() = runBlocking {
+        val testEmail = "staff_pos_${System.currentTimeMillis()}@whiskit.com"
+        val testPassword = "Password123!"
+        val testUsername = "PosStaff"
+
+        val result = authRepository.registerStaff(testEmail, testPassword, testUsername)
+        assertNotNull(result)
+        
+        // Verify user can be fetched from database
+        val usersResult = authRepository.getAllUsers()
+        assertNotNull(usersResult)
+        if (usersResult.isSuccess) {
+            val users = usersResult.getOrNull()
+            val createdUser = users?.find { it.email == testEmail }
+            assertNotNull(createdUser)
+            org.junit.Assert.assertEquals("Staff", createdUser?.role)
+            org.junit.Assert.assertEquals(false, createdUser?.isAdmin)
+        }
+    }
 }
