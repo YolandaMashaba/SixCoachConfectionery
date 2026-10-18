@@ -7,6 +7,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
 import androidx.fragment.app.Fragment
 import com.example.sixcoachconfectionery.data.SixCoachConfectioneryRepository
 import com.example.sixcoachconfectionery.databinding.ActivityMainBinding
@@ -17,7 +20,7 @@ import com.example.sixcoachconfectionery.ui.kitchen.KitchenFragment
 import com.example.sixcoachconfectionery.ui.sales.SalesFragment
 
 class MainActivity : AppCompatActivity() {
-
+    private lateinit var auth: FirebaseAuth
     private lateinit var binding: ActivityMainBinding
     private lateinit var repository: SixCoachConfectioneryRepository
 
@@ -38,6 +41,8 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
+        // Initialize Firebase Auth
+        auth = Firebase.auth
         repository = SixCoachConfectioneryRepository.getInstance(this)
         repository.addChangeListener(repoChangeListener)
 

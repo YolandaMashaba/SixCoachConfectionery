@@ -1,0 +1,93 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions for authentication and role verification
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Staff verification via dedicated staff collection lookup
+    function isStaff() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/staff/$(request.auth.uid));
+    }
+
+    function hasStaffRole(role) {
+      return isStaff() &&
+        get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role == role;
+    }
+
+    // 1. Categories & Products
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isStaff() &&
+        request.resource.data.price is number && request.resource.data.price >= 0 &&
+        request.resource.data.costPrice is number && request.resource.data.costPrice >= 0 &&
+        request.resource.data.productName is string && request.resource.data.productName.size() > 0 &&
+        request.resource.data.quantityInStock is number && request.resource.data.quantityInStock >= 0;
+    }
+
+    // 2. Customers
+    match /customers/{customerId} {
+      allow read, write: if isOwner(customerId) || isStaff();
+    }
+
+    // 3. Staff
+    match /staff/{staffId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(staffId) || hasStaffRole("Admin");
+    }
+
+    // 4. Orders & Order Items
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && (resource.data.customerId == request.auth.uid || isStaff());
+      allow create: if isAuthenticated() &&
+        request.resource.data.customerId == request.auth.uid &&
+        request.resource.data.totalAmount is number && request.resource.data.totalAmount >= 0 &&
+        request.resource.data.orderDate is number;
+      allow update: if isStaff() || (isAuthenticated() && resource.data.customerId == request.auth.uid && resource.data.status == "Pending");
+      allow delete: if isStaff();
+    }
+
+    match /order_items/{itemId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.quantity is number && request.resource.data.quantity > 0;
+      allow update, delete: if isStaff();
+    }
+
+    // 5. Payments
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.amount is number && request.resource.data.amount >= 0;
+      allow update, delete: if isStaff();
+    }
+
+    // 6. Kitchen Orders & Kitchen Order Items
+    match /kitchen_orders/{kitchenOrderId} {
+      allow read, write: if isStaff() || isAuthenticated();
+    }
+
+    match /kitchen_order_items/{itemId} {
+      allow read, write: if isStaff() || isAuthenticated();
+    }
+
+    // 7. Inventory Transactions & Sales Analytics (Staff only)
+    match /inventory_transactions/{transactionId} {
+      allow read, write: if isStaff();
+    }
+
+    match /sales_analytics/{analyticsId} {
+      allow read, write: if isStaff();
+    }
+  }
+}
