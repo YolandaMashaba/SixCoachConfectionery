@@ -38,4 +38,16 @@ class AuthRepositoryTest {
             org.junit.Assert.assertEquals(false, createdUser?.isAdmin)
         }
     }
+
+    @Test
+    fun testSeedAdminAccount() = runBlocking {
+        val result = authRepository.seedAdminAccount("admin@email.com", "admin@123")
+        assertNotNull(result)
+        if (result.isSuccess) {
+            val adminUser = result.getOrNull()
+            assertNotNull(adminUser)
+            org.junit.Assert.assertEquals("Admin", adminUser?.role)
+            org.junit.Assert.assertEquals(true, adminUser?.isAdmin)
+        }
+    }
 }
