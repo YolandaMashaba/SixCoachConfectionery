@@ -5,6 +5,13 @@ import com.example.sixcoachconfectionery.data.models.CartItem
 import com.example.sixcoachconfectionery.data.models.Item
 import com.example.sixcoachconfectionery.data.models.Order
 import com.example.sixcoachconfectionery.data.models.User
+import com.example.sixcoachconfectionery.data.repository.AnalyticsRepository
+import com.example.sixcoachconfectionery.data.repository.OrderRepository
+import com.example.sixcoachconfectionery.data.repository.ProductRepository
+import com.example.sixcoachconfectionery.data.repository.StaffCustomerRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -19,9 +26,25 @@ class SixCoachConfectioneryRepository private constructor(private val context: C
     private var currentUser: User? = null
 
     private val listeners = mutableListOf<() -> Unit>()
+    private val scope = CoroutineScope(Dispatchers.IO)
+
+    // Backend Repositories
+    private var productRepository: ProductRepository? = null
+    private var orderRepository: OrderRepository? = null
+    private var analyticsRepository: AnalyticsRepository? = null
+    private var staffCustomerRepository: StaffCustomerRepository? = null
 
     init {
+        try {
+            productRepository = ProductRepository()
+            orderRepository = OrderRepository()
+            analyticsRepository = AnalyticsRepository()
+            staffCustomerRepository = StaffCustomerRepository()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         loadFromDisk()
+        syncWithBackend()
     }
 
     fun addChangeListener(listener: () -> Unit) {
@@ -130,7 +153,7 @@ class SixCoachConfectioneryRepository private constructor(private val context: C
         val order1 = Order(
             id = 1,
             customer = "Walk-in",
-            timestamp = System.currentTimeMillis() - 86400000, // 1 day ago
+            timestamp = System.currentTimeMillis() - 86400000,
             items = listOf(CartItem(gwinya, 1)),
             total = 5.00,
             paymentMethod = "Cash",
@@ -141,7 +164,7 @@ class SixCoachConfectioneryRepository private constructor(private val context: C
         val order2 = Order(
             id = 2,
             customer = "Walk-in",
-            timestamp = System.currentTimeMillis() - 3600000, // 1 hr ago
+            timestamp = System.currentTimeMillis() - 3600000,
             items = listOf(CartItem(latte, 1)),
             total = 24.00,
             paymentMethod = "Card",
@@ -177,6 +200,38 @@ class SixCoachConfectioneryRepository private constructor(private val context: C
         }
     }
 
+    private fun syncWithBackend() {
+        scope.launch {
+            try {
+                // Sync Products
+                val pResult = productRepository?.getProducts()
+                if (pResult != null && pResult.isSuccess) {
+                    val backendProducts = pResult.getOrNull()
+                    if (!backendProducts.isNullOrEmpty()) {
+                        backendProducts.forEach { bp ->
+                            val existingIndex = items.indexOfFirst { it.id == bp.productId }
+                            val mappedItem = Item(
+                                id = bp.productId,
+                                name = bp.productName,
+                                category = bp.categoryId.ifEmpty { "General" },
+                                price = bp.price,
+                                stock = bp.quantityInStock,
+                                isActive = bp.availability != "Inactive"
+                            )
+                            if (existingIndex != -1) {
+                                items[existingIndex] = mappedItem
+                            } else {
+                                items.add(mappedItem)
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     // --- USER MANAGEMENT ---
     fun getCurrentUser(): User? = currentUser
 
@@ -197,11 +252,25 @@ class SixCoachConfectioneryRepository private constructor(private val context: C
             id = User.generatedId(),
             username = trimmed,
             passwordHash = passwordHash,
-            isAdmin = isFirst // First user becomes admin
+            isAdmin = isFirst
         )
         users.add(newUser)
         currentUser = newUser
         notifyDataChanged()
+
+        scope.launch {
+            try {
+                val staff = com.example.sixcoachconfectionery.data.model.Staff(
+                    staffId = newUser.id,
+                    email = newUser.username,
+                    role = if (newUser.isAdmin) "Admin" else "Cashier"
+                )
+                staffCustomerRepository?.saveStaff(staff)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
         return Pair(true, "Registration successful")
     }
 
@@ -234,6 +303,20 @@ class SixCoachConfectioneryRepository private constructor(private val context: C
                 currentUser = updated
             }
             notifyDataChanged()
+
+            scope.launch {
+                try {
+                    val staff = com.example.sixcoachconfectionery.data.model.Staff(
+                        staffId = updated.id,
+                        email = updated.username,
+                        role = if (updated.isAdmin) "Admin" else "Cashier"
+                    )
+                    staffCustomerRepository?.saveStaff(staff)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+
             return true
         }
         return false
@@ -260,14 +343,37 @@ class SixCoachConfectioneryRepository private constructor(private val context: C
             items.add(item)
         }
         notifyDataChanged()
+
+        scope.launch {
+            try {
+                val backendProduct = com.example.sixcoachconfectionery.data.model.Product(
+                    productId = item.id,
+                    productName = item.name,
+                    categoryId = item.category,
+                    price = item.price,
+                    quantityInStock = item.stock,
+                    availability = if (item.stock > 0) "In Stock" else "Out of Stock"
+                )
+                productRepository?.saveProduct(backendProduct)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     fun deleteItem(itemId: String) {
-        // Soft delete / deactivate or remove
         val index = items.indexOfFirst { it.id == itemId }
         if (index != -1) {
             items[index] = items[index].copy(isActive = false)
             notifyDataChanged()
+
+            scope.launch {
+                try {
+                    productRepository?.deleteProduct(itemId)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
         }
     }
 
@@ -330,6 +436,48 @@ class SixCoachConfectioneryRepository private constructor(private val context: C
         orders.add(newOrder)
         notifyDataChanged()
 
+        scope.launch {
+            try {
+                val bOrder = com.example.sixcoachconfectionery.data.model.Order(
+                    orderId = newOrderId.toString(),
+                    orderDate = newOrder.timestamp,
+                    totalAmount = totalAmount,
+                    status = "Pending",
+                    staffId = currentUser?.id ?: ""
+                )
+                val bItems = cartItems.map { ci ->
+                    com.example.sixcoachconfectionery.data.model.OrderItem(
+                        orderId = newOrderId.toString(),
+                        productId = ci.item.id,
+                        quantity = ci.quantity,
+                        unitPrice = ci.item.price,
+                        subtotal = ci.totalPrice
+                    )
+                }
+                val bPayment = com.example.sixcoachconfectionery.data.model.Payment(
+                    orderId = newOrderId.toString(),
+                    amount = totalAmount,
+                    paymentMethod = paymentMethod,
+                    reference = if (paymentMethod == "Cash") "Tendered: R%.2f, Change: R%.2f".format(amountTendered, change) else "Card",
+                    status = "Success"
+                )
+                val bKitchenOrder = com.example.sixcoachconfectionery.data.model.KitchenOrder(
+                    orderId = newOrderId.toString(),
+                    status = "Pending"
+                )
+                val bKitchenItems = cartItems.map { ci ->
+                    com.example.sixcoachconfectionery.data.model.KitchenOrderItem(
+                        productId = ci.item.id,
+                        quantity = ci.quantity
+                    )
+                }
+
+                orderRepository?.createCompleteOrder(bOrder, bItems, bPayment, bKitchenOrder, bKitchenItems)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
         return Pair(true, "Order #$newOrderId placed successfully!")
     }
 
@@ -338,6 +486,16 @@ class SixCoachConfectioneryRepository private constructor(private val context: C
         if (index != -1) {
             orders[index] = orders[index].copy(status = "Completed")
             notifyDataChanged()
+
+            scope.launch {
+                try {
+                    orderRepository?.updateOrderStatus(orderId.toString(), "Completed")
+                    orderRepository?.updateKitchenOrderStatus(orderId.toString(), "Completed")
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+
             return true
         }
         return false
