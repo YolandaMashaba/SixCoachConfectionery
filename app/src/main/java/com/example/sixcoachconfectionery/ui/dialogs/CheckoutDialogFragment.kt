@@ -128,8 +128,18 @@ class CheckoutDialogFragment(
         binding.btnConfirmPayment.isEnabled = false
 
         lifecycleScope.launch(Dispatchers.IO) {
-            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: "staff_default"
+            val currentUser = FirebaseAuth.getInstance().currentUser
+            val uid = currentUser?.uid ?: "staff_default"
             val orderId = "ord_${System.currentTimeMillis()}"
+
+            if (currentUser == null) {
+                withContext(Dispatchers.Main) {
+                    binding.tvCheckoutError.text = "Authentication required before completing checkout."
+                    binding.tvCheckoutError.visibility = View.VISIBLE
+                    binding.btnConfirmPayment.isEnabled = true
+                }
+                return@launch
+            }
 
             val firestoreOrder = FirestoreOrder(
                 orderId = orderId,
@@ -137,8 +147,10 @@ class CheckoutDialogFragment(
                 totalAmount = totalAmount,
                 status = "Pending",
                 staffId = uid,
-                customerId = uid
+                customerId = currentUser.uid
             )
+
+            android.util.Log.d("CheckoutDialogFragment", "Preparing order payload: customerId=${firestoreOrder.customerId}, orderDate=${firestoreOrder.orderDate}, totalAmount=${firestoreOrder.totalAmount}")
 
             val firestoreOrderItems = cartItems.map { ci ->
                 FirestoreOrderItem(
