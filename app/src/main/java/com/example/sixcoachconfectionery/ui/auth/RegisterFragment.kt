@@ -92,8 +92,11 @@ class RegisterFragment : Fragment() {
             withContext(Dispatchers.Main) {
                 binding.btnDoRegister.isEnabled = true
                 if (result.isSuccess) {
+                    val userProfile = result.getOrNull()
                     Toast.makeText(requireContext(), "Account created as $selectedRole!", Toast.LENGTH_SHORT).show()
-                    if (selectedRole == "Kitchen Staff") {
+                    if (userProfile != null) {
+                        (activity as? MainActivity)?.onUserLoggedIn(userProfile)
+                    } else if (selectedRole == "Kitchen Staff") {
                         (activity as? MainActivity)?.navigateToKitchen()
                     } else {
                         (activity as? MainActivity)?.navigateToSales()
