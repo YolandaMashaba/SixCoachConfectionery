@@ -1,16 +1,22 @@
 package com.example.sixcoachconfectionery.data.repository
 
+import android.util.Log
 import com.example.sixcoachconfectionery.data.model.KitchenOrder
 import com.example.sixcoachconfectionery.data.model.KitchenOrderItem
 import com.example.sixcoachconfectionery.data.model.Order
 import com.example.sixcoachconfectionery.data.model.OrderItem
 import com.example.sixcoachconfectionery.data.model.Payment
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 
 class OrderRepository(
     private val firestoreProvider: () -> FirebaseFirestore = { FirebaseFirestore.getInstance() }
 ) {
+    companion object {
+        private const val TAG = "OrderRepository"
+    }
+  
     private val firestore by lazy { firestoreProvider() }
     private val ordersCollection by lazy { firestore.collection("orders") }
     private val orderItemsCollection by lazy { firestore.collection("order_items") }
@@ -26,8 +32,32 @@ class OrderRepository(
         kitchenItems: List<KitchenOrderItem>
     ): Result<Unit> {
         return try {
-            val orderId = order.orderId.ifEmpty { ordersCollection.document().id }
-            val orderToSave = order.copy(orderId = orderId)
+            val currentUser = FirebaseAuth.getInstance().currentUser
+            if (currentUser == null) {
+                val error = IllegalStateException("Permission denied: no authenticated user is signed in.")
+                Log.e(TAG, "Order creation blocked because no Firebase user is signed in", error)
+                throw error
+            }
+
+            val validatedOrder = order.copy(
+                orderDate = if (order.orderDate > 0L) order.orderDate else System.currentTimeMillis(),
+                totalAmount = order.totalAmount.coerceAtLeast(0.0),
+                customerId = currentUser.uid,
+                staffId = if (order.staffId.isBlank()) currentUser.uid else order.staffId
+            )
+
+            val orderId = validatedOrder.orderId.ifEmpty { ordersCollection.document().id }
+            val orderToSave = validatedOrder.copy(orderId = orderId)
+
+            if (!orderToSave.customerId.equals(currentUser.uid, ignoreCase = false)) {
+                throw IllegalStateException("Order customerId mismatch: expected ${currentUser.uid}, got ${orderToSave.customerId}")
+            }
+
+            if (orderToSave.totalAmount < 0 || orderToSave.orderDate <= 0L) {
+                throw IllegalStateException("Invalid order payload: totalAmount=${orderToSave.totalAmount}, orderDate=${orderToSave.orderDate}, customerId=${orderToSave.customerId}")
+            }
+
+            Log.d(TAG, "Preparing Firestore order payload: orderId=$orderId, customerId=${orderToSave.customerId}, orderDate=${orderToSave.orderDate}, totalAmount=${orderToSave.totalAmount}")
 
             val paymentId = payment.paymentId.ifEmpty { paymentsCollection.document().id }
             val paymentToSave = payment.copy(paymentId = paymentId, orderId = orderId)
@@ -37,23 +67,17 @@ class OrderRepository(
 
             val batch = firestore.batch()
 
-            // Save Order
             batch.set(ordersCollection.document(orderId), orderToSave)
 
-            // Save Order Items
             for (item in items) {
                 val itemId = item.orderItemId.ifEmpty { orderItemsCollection.document().id }
                 val itemToSave = item.copy(orderItemId = itemId, orderId = orderId)
                 batch.set(orderItemsCollection.document(itemId), itemToSave)
             }
 
-            // Save Payment
             batch.set(paymentsCollection.document(paymentId), paymentToSave)
-
-            // Save Kitchen Order
             batch.set(kitchenOrdersCollection.document(kitchenOrderId), kitchenOrderToSave)
 
-            // Save Kitchen Order Items
             for (kItem in kitchenItems) {
                 val kItemId = kItem.kitchenOrderItemId.ifEmpty { kitchenOrderItemsCollection.document().id }
                 val kItemToSave = kItem.copy(kitchenOrderItemId = kItemId, kitchenOrderId = kitchenOrderId)
@@ -63,6 +87,7 @@ class OrderRepository(
             batch.commit().await()
             Result.success(Unit)
         } catch (e: Exception) {
+            Log.e(TAG, "Create complete order failed", e)
             Result.failure(e)
         }
     }
@@ -81,6 +106,13 @@ class OrderRepository(
         kitchenItems: List<KitchenOrderItem>
     ): Result<Unit> {
         return try {
+            val currentUser = FirebaseAuth.getInstance().currentUser
+            if (currentUser == null) {
+                val error = IllegalStateException("Permission denied: no authenticated user is signed in.")
+                Log.e(TAG, "Order creation blocked because no Firebase user is signed in", error)
+                throw error
+            }
+
             firestore.runTransaction { transaction ->
                 val productDocs = mutableMapOf<String, com.example.sixcoachconfectionery.data.model.Product>()
 
@@ -97,9 +129,24 @@ class OrderRepository(
                     productDocs[item.productId] = product
                 }
 
-                // 2. Prepare IDs
-                val orderId = order.orderId.ifEmpty { ordersCollection.document().id }
-                val orderToSave = order.copy(orderId = orderId)
+                // 2. Prepare IDs and validate required Firestore rule fields
+                val validatedOrder = order.copy(
+                    orderDate = if (order.orderDate > 0L) order.orderDate else System.currentTimeMillis(),
+                    totalAmount = order.totalAmount.coerceAtLeast(0.0),
+                    customerId = currentUser.uid,
+                    staffId = if (order.staffId.isBlank()) currentUser.uid else order.staffId
+                )
+
+                if (validatedOrder.customerId != currentUser.uid) {
+                    throw IllegalStateException("Order customerId mismatch: expected ${currentUser.uid}, got ${validatedOrder.customerId}")
+                }
+                if (validatedOrder.totalAmount < 0.0 || validatedOrder.orderDate <= 0L) {
+                    throw IllegalStateException("Invalid order payload: totalAmount=${validatedOrder.totalAmount}, orderDate=${validatedOrder.orderDate}, customerId=${validatedOrder.customerId}")
+                }
+                Log.d(TAG, "Validated order payload before Firestore write: customerId=${validatedOrder.customerId}, orderDate=${validatedOrder.orderDate}, totalAmount=${validatedOrder.totalAmount}")
+
+                val orderId = validatedOrder.orderId.ifEmpty { ordersCollection.document().id }
+                val orderToSave = validatedOrder.copy(orderId = orderId)
 
                 val paymentId = payment.paymentId.ifEmpty { paymentsCollection.document().id }
                 val paymentToSave = payment.copy(paymentId = paymentId, orderId = orderId)
@@ -126,7 +173,7 @@ class OrderRepository(
                     val transactionRecord = com.example.sixcoachconfectionery.data.model.InventoryTransaction(
                         transactionId = transRef.id,
                         productId = item.productId,
-                        staffId = order.staffId,
+                        staffId = currentUser.uid,
                         transactionType = "Sale",
                         quantity = item.quantity,
                         notes = "Order transaction: $orderId"
@@ -161,6 +208,7 @@ class OrderRepository(
 
             Result.success(Unit)
         } catch (e: Exception) {
+            Log.e(TAG, "Place order failed", e)
             Result.failure(e)
         }
     }

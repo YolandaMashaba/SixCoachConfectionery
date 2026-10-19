@@ -110,4 +110,23 @@ class SixCoachConfectioneryAppUnitTest {
         val pass2 = "different123"
         assertNotEquals("Mismatched passwords must trigger validation error", pass1, pass2)
     }
+
+    @Test
+    fun testFrontendAddItemFunctionality() {
+        val newItem = Item(
+            id = Item.generatedId(),
+            name = "Test Muffin",
+            category = "Bakery",
+            price = 15.00,
+            stock = 20,
+            isActive = true
+        )
+
+        assertNotNull(newItem.id)
+        assertEquals("Test Muffin", newItem.name)
+        assertEquals("Bakery", newItem.category)
+        assertEquals(15.00, newItem.price, 0.001)
+        assertEquals(20, newItem.stock)
+        assertTrue(newItem.isActive)
+    }
 }

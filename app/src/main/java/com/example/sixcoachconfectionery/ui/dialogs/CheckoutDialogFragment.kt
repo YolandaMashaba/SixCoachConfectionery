@@ -1,6 +1,5 @@
 package com.example.sixcoachconfectionery.ui.dialogs
 
-import android.app.Dialog
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -8,9 +7,19 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.DialogFragment
-import com.example.sixcoachconfectionery.data.SixCoachConfectioneryRepository
+import androidx.lifecycle.lifecycleScope
 import com.example.sixcoachconfectionery.data.models.CartItem
+import com.example.sixcoachconfectionery.data.model.KitchenOrder
+import com.example.sixcoachconfectionery.data.model.KitchenOrderItem
+import com.example.sixcoachconfectionery.data.model.Order as FirestoreOrder
+import com.example.sixcoachconfectionery.data.model.OrderItem as FirestoreOrderItem
+import com.example.sixcoachconfectionery.data.model.Payment as FirestorePayment
+import com.example.sixcoachconfectionery.data.repository.OrderRepository
 import com.example.sixcoachconfectionery.databinding.DialogCheckoutBinding
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class CheckoutDialogFragment(
     private val cartItems: List<CartItem>,
@@ -20,7 +29,7 @@ class CheckoutDialogFragment(
     private var _binding: DialogCheckoutBinding? = null
     private val binding get() = _binding!!
 
-    private lateinit var repository: SixCoachConfectioneryRepository
+    private val orderRepository = OrderRepository()
     private var totalAmount: Double = 0.0
 
     override fun onCreateView(
@@ -34,13 +43,12 @@ class CheckoutDialogFragment(
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        repository = SixCoachConfectioneryRepository.getInstance(requireContext())
 
         totalAmount = cartItems.sumOf { it.totalPrice }
         binding.tvDialogOrderTotal.text = "R %.2f".format(totalAmount)
 
-        val currentUser = repository.getCurrentUser()
-        binding.tvCashierInfo.text = "Cashier: ${currentUser?.username ?: "Staff"}"
+        val currentUser = FirebaseAuth.getInstance().currentUser
+        binding.tvCashierInfo.text = "Cashier: ${currentUser?.email ?: "Staff"}"
 
         setupListeners()
     }
@@ -111,13 +119,96 @@ class CheckoutDialogFragment(
         val tenderedStr = binding.etAmountTendered.text.toString().trim()
         val tendered = if (paymentMethod == "Cash") tenderedStr.toDoubleOrNull() ?: 0.0 else totalAmount
 
-        val result = repository.createOrder(cartItems, paymentMethod, tendered)
-        if (result.first) {
-            onPaymentComplete()
-            dismiss()
-        } else {
-            binding.tvCheckoutError.text = result.second
+        if (paymentMethod == "Cash" && tendered < totalAmount) {
+            binding.tvCheckoutError.text = "Amount tendered (R %.2f) is less than order total (R %.2f).".format(tendered, totalAmount)
             binding.tvCheckoutError.visibility = View.VISIBLE
+            return
+        }
+
+        binding.btnConfirmPayment.isEnabled = false
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            val currentUser = FirebaseAuth.getInstance().currentUser
+            val uid = currentUser?.uid ?: "staff_default"
+            val orderId = "ord_${System.currentTimeMillis()}"
+
+            if (currentUser == null) {
+                withContext(Dispatchers.Main) {
+                    binding.tvCheckoutError.text = "Authentication required before completing checkout."
+                    binding.tvCheckoutError.visibility = View.VISIBLE
+                    binding.btnConfirmPayment.isEnabled = true
+                }
+                return@launch
+            }
+
+            val firestoreOrder = FirestoreOrder(
+                orderId = orderId,
+                orderDate = System.currentTimeMillis(),
+                totalAmount = totalAmount,
+                status = "Pending",
+                staffId = uid,
+                customerId = currentUser.uid
+            )
+
+            android.util.Log.d("CheckoutDialogFragment", "Preparing order payload: customerId=${firestoreOrder.customerId}, orderDate=${firestoreOrder.orderDate}, totalAmount=${firestoreOrder.totalAmount}")
+
+            val firestoreOrderItems = cartItems.map { ci ->
+                FirestoreOrderItem(
+                    orderItemId = "",
+                    orderId = orderId,
+                    productId = ci.item.id,
+                    quantity = ci.quantity,
+                    unitPrice = ci.item.price,
+                    subtotal = ci.totalPrice
+                )
+            }
+
+            val firestorePayment = FirestorePayment(
+                paymentId = "",
+                orderId = orderId,
+                paymentMethod = paymentMethod,
+                amount = totalAmount,
+                paymentDate = System.currentTimeMillis(),
+                reference = "TXN_${System.currentTimeMillis()}",
+                status = "Success"
+            )
+
+            val kitchenOrder = KitchenOrder(
+                kitchenOrderId = "",
+                orderId = orderId,
+                status = "Pending",
+                sentToKitchenAt = System.currentTimeMillis()
+            )
+
+            val kitchenItems = cartItems.map { ci ->
+                KitchenOrderItem(
+                    kitchenOrderItemId = "",
+                    kitchenOrderId = "",
+                    productId = ci.item.id,
+                    quantity = ci.quantity,
+                    status = "Pending"
+                )
+            }
+
+            val result = orderRepository.placeOrderWithTransaction(
+                firestoreOrder,
+                firestoreOrderItems,
+                firestorePayment,
+                kitchenOrder,
+                kitchenItems
+            )
+
+            withContext(Dispatchers.Main) {
+                binding.btnConfirmPayment.isEnabled = true
+                if (result.isSuccess) {
+                    onPaymentComplete()
+                    dismiss()
+                } else {
+                    val err = result.exceptionOrNull()?.localizedMessage ?: "Failed to process payment & update stock."
+                    binding.tvCheckoutError.text = err
+                    binding.tvCheckoutError.visibility = View.VISIBLE
+                }
+            }
         }
     }
 

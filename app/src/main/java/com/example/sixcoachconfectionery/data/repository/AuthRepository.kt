@@ -1,5 +1,6 @@
 package com.example.sixcoachconfectionery.data.repository
 
+import android.util.Log
 import com.example.sixcoachconfectionery.data.model.UserProfile
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -9,6 +10,10 @@ class AuthRepository(
     private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
 ) {
+    companion object {
+        private const val TAG = "AuthRepository"
+    }
+
     private val usersCollection = firestore.collection("users")
 
     /**
@@ -36,16 +41,39 @@ class AuthRepository(
     }
 
     /**
-     * Login for both Staff and Admin: signs in via Firebase Auth and fetches their Firestore user profile to resolve role/isAdmin status.
+     * Login for both Staff and Admin: signs in via Firebase Auth and fetches/ensures their Firestore user profile to resolve role/isAdmin status.
      */
     suspend fun loginUser(email: String, pass: String): Result<UserProfile> {
         return try {
             val authResult = auth.signInWithEmailAndPassword(email, pass).await()
             val firebaseUser = authResult.user ?: throw IllegalStateException("Firebase user is null after sign in")
 
-            val docSnapshot = usersCollection.document(firebaseUser.uid).get().await()
-            val profile = docSnapshot.toObject(UserProfile::class.java)
-                ?: UserProfile(uid = firebaseUser.uid, email = email, username = email.substringBefore("@"), role = "Staff", isAdmin = false)
+            val docRef = usersCollection.document(firebaseUser.uid)
+            val docSnapshot = docRef.get().await()
+
+            val isAdminUser = email.equals("admin@email.com", ignoreCase = true)
+
+            val profile = if (docSnapshot.exists()) {
+                val existing = docSnapshot.toObject(UserProfile::class.java) ?: UserProfile(uid = firebaseUser.uid, email = email)
+                if (isAdminUser && (!existing.isAdmin || existing.role != "Admin")) {
+                    val updated = existing.copy(isAdmin = true, role = "Admin")
+                    docRef.set(updated).await()
+                    updated
+                } else {
+                    existing
+                }
+            } else {
+                val newProfile = UserProfile(
+                    uid = firebaseUser.uid,
+                    email = email,
+                    username = email.substringBefore("@"),
+                    role = if (isAdminUser) "Admin" else "Counter Staff",
+                    isAdmin = isAdminUser,
+                    createdAt = System.currentTimeMillis()
+                )
+                docRef.set(newProfile).await()
+                newProfile
+            }
 
             Result.success(profile)
         } catch (e: Exception) {
@@ -83,9 +111,57 @@ class AuthRepository(
     }
 
     /**
-     * Programmatically seeds the default Admin account (email: admin@email.com, password: admin@123)
-     * in Firebase Authentication and ensures its Firestore document exists with isAdmin = true and role = "Admin".
+     * Deletes a user profile document from Firestore (Admin feature).
      */
+    suspend fun deleteUser(uid: String): Result<Unit> {
+        return try {
+            usersCollection.document(uid).delete().await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Google Sign-In / SSO: authenticates with Firebase Auth via Google ID token and ensures user profile exists in Firestore.
+     */
+    suspend fun signInWithGoogle(googleIdToken: String): Result<UserProfile> {
+        return try {
+            if (googleIdToken.isBlank()) {
+                val error = IllegalArgumentException("Google ID token is blank. Confirm the Web Client ID is correct and the Google sign-in flow returned a valid token.")
+                Log.e(TAG, "Google sign-in failed: ID token is blank", error)
+                throw error
+            }
+
+            Log.d(TAG, "Creating Firebase credential from Google ID token")
+            val credential = com.google.firebase.auth.GoogleAuthProvider.getCredential(googleIdToken, null)
+            val authResult = auth.signInWithCredential(credential).await()
+            val firebaseUser = authResult.user ?: throw IllegalStateException("Firebase user is null after Google sign in")
+
+            val docRef = usersCollection.document(firebaseUser.uid)
+            val docSnapshot = docRef.get().await()
+
+            val profile = if (docSnapshot.exists()) {
+                docSnapshot.toObject(UserProfile::class.java) ?: UserProfile(uid = firebaseUser.uid, email = firebaseUser.email ?: "", username = firebaseUser.displayName ?: "GoogleUser", role = "Counter Staff", isAdmin = false)
+            } else {
+                val newProfile = UserProfile(
+                    uid = firebaseUser.uid,
+                    email = firebaseUser.email ?: "",
+                    username = firebaseUser.displayName ?: firebaseUser.email?.substringBefore("@") ?: "GoogleUser",
+                    role = "Counter Staff",
+                    isAdmin = false,
+                    createdAt = System.currentTimeMillis()
+                )
+                docRef.set(newProfile).await()
+                newProfile
+            }
+
+            Result.success(profile)
+        } catch (e: Exception) {
+            Log.e(TAG, "Google sign-in credential exchange failed", e)
+            Result.failure(e)
+        }
+    }
     suspend fun seedAdminAccount(adminEmail: String = "admin@email.com", adminPass: String = "admin@123"): Result<UserProfile> {
         return try {
             val firebaseUser = try {

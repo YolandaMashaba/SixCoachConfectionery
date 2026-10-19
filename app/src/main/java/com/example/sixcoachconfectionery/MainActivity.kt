@@ -42,8 +42,16 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
-        // Initialize Firebase Auth
+        // Initialize Firebase Auth & Firestore defensively
         auth = Firebase.auth
+        try {
+            val settings = com.google.firebase.firestore.FirebaseFirestoreSettings.Builder()
+                .setPersistenceEnabled(true)
+                .build()
+            com.google.firebase.firestore.FirebaseFirestore.getInstance().firestoreSettings = settings
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         repository = SixCoachConfectioneryRepository.getInstance(this)
         repository.addChangeListener(repoChangeListener)
 
