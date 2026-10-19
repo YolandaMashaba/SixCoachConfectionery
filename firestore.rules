@@ -20,8 +20,11 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() &&
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+        (request.auth.token.email == 'admin@email.com' ||
+         request.auth.token.email == 'ST10385107@rcconnect.edu.za' ||
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true ||
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin')));
     }
 
     function hasStaffRole(role) {
