@@ -9,34 +9,34 @@ import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.sixcoachconfectionery.R
-import com.example.sixcoachconfectionery.data.SixCoachConfectioneryRepository
 import com.example.sixcoachconfectionery.data.models.CartItem
 import com.example.sixcoachconfectionery.data.models.Item
+import com.example.sixcoachconfectionery.data.repository.ProductRepository
 import com.example.sixcoachconfectionery.databinding.FragmentSalesBinding
 import com.example.sixcoachconfectionery.ui.adapters.CartAdapter
 import com.example.sixcoachconfectionery.ui.adapters.ProductAdapter
 import com.example.sixcoachconfectionery.ui.dialogs.CheckoutDialogFragment
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class SalesFragment : Fragment() {
 
     private var _binding: FragmentSalesBinding? = null
     private val binding get() = _binding!!
 
-    private lateinit var repository: SixCoachConfectioneryRepository
+    private val productRepository = ProductRepository()
     private lateinit var productAdapter: ProductAdapter
     private lateinit var cartAdapter: CartAdapter
 
     private var selectedCategory: String = "All"
     private val cartItems = mutableListOf<CartItem>()
-
-    private val repoChangeListener = {
-        if (isAdded) {
-            refreshProducts()
-        }
-    }
+    private var allProductsList = listOf<Item>()
+    private var categoriesList = listOf("All")
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -49,13 +49,9 @@ class SalesFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        repository = SixCoachConfectioneryRepository.getInstance(requireContext())
-        repository.addChangeListener(repoChangeListener)
 
         setupAdapters()
-        setupCategoryChips()
-        refreshProducts()
-        updateCartUI()
+        loadFirestoreProducts()
 
         binding.btnClearCart.setOnClickListener {
             cartItems.clear()
@@ -71,8 +67,8 @@ class SalesFragment : Fragment() {
             val checkoutDialog = CheckoutDialogFragment(cartItems) {
                 cartItems.clear()
                 updateCartUI()
-                refreshProducts()
-                Toast.makeText(requireContext(), "Payment Complete! Order sent to Kitchen.", Toast.LENGTH_LONG).show()
+                loadFirestoreProducts()
+                Toast.makeText(requireContext(), "Payment Complete! Order sent to Kitchen & Dashboard.", Toast.LENGTH_LONG).show()
             }
             checkoutDialog.show(parentFragmentManager, "CheckoutDialog")
         }
@@ -90,7 +86,7 @@ class SalesFragment : Fragment() {
                 if (newQty <= 0) {
                     cartItems.remove(cartItem)
                 } else {
-                    val storeItem = repository.getActiveItems().find { it.id == cartItem.item.id }
+                    val storeItem = allProductsList.find { it.id == cartItem.item.id }
                     if (storeItem != null && newQty <= storeItem.stock) {
                         cartItem.quantity = newQty
                     } else {
@@ -108,11 +104,42 @@ class SalesFragment : Fragment() {
         binding.rvCartItems.adapter = cartAdapter
     }
 
+    private fun loadFirestoreProducts() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val productsResult = productRepository.getProducts()
+            val categoriesResult = productRepository.getCategories()
+
+            withContext(Dispatchers.Main) {
+                if (productsResult.isSuccess) {
+                    val firestoreProducts = productsResult.getOrNull() ?: emptyList()
+                    allProductsList = firestoreProducts.map { p ->
+                        Item(
+                            id = p.productId,
+                            name = p.productName,
+                            category = p.categoryId,
+                            price = p.price,
+                            stock = p.quantityInStock,
+                            isActive = p.availability == "In Stock"
+                        )
+                    }
+                }
+
+                if (categoriesResult.isSuccess) {
+                    val firestoreCategories = categoriesResult.getOrNull() ?: emptyList()
+                    val catNames = firestoreCategories.map { it.categoryName }
+                    categoriesList = listOf("All") + catNames.distinct()
+                }
+
+                setupCategoryChips()
+                refreshProducts()
+            }
+        }
+    }
+
     private fun setupCategoryChips() {
-        val categories = repository.getItemCategories()
         binding.layoutCategoryChips.removeAllViews()
 
-        categories.forEach { cat ->
+        categoriesList.forEach { cat ->
             val button = Button(requireContext(), null, com.google.android.material.R.attr.materialButtonStyle).apply {
                 text = cat
                 textSize = 13f
@@ -144,11 +171,11 @@ class SalesFragment : Fragment() {
     }
 
     private fun refreshProducts() {
-        val allActive = repository.getActiveItems()
+        val active = allProductsList.filter { it.isActive }
         val filtered = if (selectedCategory == "All") {
-            allActive
+            active
         } else {
-            allActive.filter { it.category.equals(selectedCategory, ignoreCase = true) }
+            active.filter { it.category.equals(selectedCategory, ignoreCase = true) }
         }
         productAdapter.updateData(filtered)
     }
@@ -196,7 +223,6 @@ class SalesFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        repository.removeChangeListener(repoChangeListener)
         _binding = null
     }
 }
