@@ -6,14 +6,14 @@ A comprehensive, full-stack Android application built in Android Studio designed
 
 ## Key Features & Modules
 
-### 🛒 1. Sales Floor (Point of Sale)
+### 1. Sales Floor (Point of Sale)
 - **Interactive POS Interface:** Fast category and product selection optimized for touchscreen interaction.
 - **Order Customization:** Support for item modifiers (e.g., custom cake messages, sugar levels, milk alternatives, dietary tags).
 - **Cart & Checkout Management:** Quick item adding/removing, split billing, percentage/flat discounts, and tax calculations.
 - **Payment Processing:** Accepts multiple payment methods (Cash, Card, Mobile Wallet/QR).
 - **Receipt Generation:** Integrated digital receipt sending (Email/SMS) and Bluetooth/Network thermal printer printing.
 
-### 🍳 2. Kitchen Display System (KDS)
+### 2. Kitchen Display System (KDS)
 - **Real-Time Order Sync:** Instant routing of new orders from the POS to kitchen displays via WebSocket/Firebase listener.
 - **Status Workflow Management:** Interactive ticket cards transitioning across states: `New` ➔ `In Preparation` ➔ `Ready for Pickup` ➔ `Completed`.
 - **Item-Level Progress:** Bakeshop staff can cross off individual items on multi-item custom cake or pastry orders.
