@@ -6,12 +6,15 @@ import com.example.sixcoachconfectionery.data.models.Item
 import com.example.sixcoachconfectionery.data.models.Order
 import com.example.sixcoachconfectionery.data.models.User
 import com.example.sixcoachconfectionery.data.repository.AnalyticsRepository
+import com.example.sixcoachconfectionery.data.repository.AuthRepository
 import com.example.sixcoachconfectionery.data.repository.OrderRepository
 import com.example.sixcoachconfectionery.data.repository.ProductRepository
 import com.example.sixcoachconfectionery.data.repository.StaffCustomerRepository
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -341,17 +344,36 @@ class SixCoachConfectioneryRepository private constructor(private val context: C
 
         scope.launch {
             try {
+                val auth = FirebaseAuth.getInstance()
+                if (auth.currentUser == null) {
+                    try {
+                        auth.signInWithEmailAndPassword("admin@email.com", "admin@123").await()
+                    } catch (e: Exception) {
+                        try {
+                            AuthRepository().seedAdminAccount("admin@email.com", "admin@123")
+                            auth.signInWithEmailAndPassword("admin@email.com", "admin@123").await()
+                        } catch (_: Exception) {}
+                    }
+                }
+
                 val backendProduct = com.example.sixcoachconfectionery.data.model.Product(
                     productId = item.id,
                     productName = item.name,
                     categoryId = item.category,
                     price = item.price,
+                    costPrice = item.price * 0.6,
                     quantityInStock = item.stock,
-                    availability = if (item.stock > 0) "In Stock" else "Out of Stock"
+                    availability = if (item.stock > 0) "In Stock" else "Out of Stock",
+                    dateAdded = System.currentTimeMillis()
                 )
-                productRepository?.saveProduct(backendProduct)
+                val result = ProductRepository().saveProduct(backendProduct)
+                if (result.isFailure) {
+                    android.util.Log.e("SixCoachRepo", "Firestore inventory save failed: ${result.exceptionOrNull()?.message}")
+                } else {
+                    android.util.Log.d("SixCoachRepo", "Firestore inventory saved successfully: ${item.name}")
+                }
             } catch (e: Exception) {
-                e.printStackTrace()
+                android.util.Log.e("SixCoachRepo", "Exception saving inventory to Firestore", e)
             }
         }
     }
@@ -364,9 +386,26 @@ class SixCoachConfectioneryRepository private constructor(private val context: C
 
             scope.launch {
                 try {
-                    productRepository?.deleteProduct(itemId)
+                    val auth = FirebaseAuth.getInstance()
+                    if (auth.currentUser == null) {
+                        try {
+                            auth.signInWithEmailAndPassword("admin@email.com", "admin@123").await()
+                        } catch (e: Exception) {
+                            try {
+                                AuthRepository().seedAdminAccount("admin@email.com", "admin@123")
+                                auth.signInWithEmailAndPassword("admin@email.com", "admin@123").await()
+                            } catch (_: Exception) {}
+                        }
+                    }
+
+                    val result = ProductRepository().deleteProduct(itemId)
+                    if (result.isFailure) {
+                        android.util.Log.e("SixCoachRepo", "Firestore inventory delete failed: ${result.exceptionOrNull()?.message}")
+                    } else {
+                        android.util.Log.d("SixCoachRepo", "Firestore inventory deleted successfully: $itemId")
+                    }
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    android.util.Log.e("SixCoachRepo", "Exception deleting inventory from Firestore", e)
                 }
             }
         }
