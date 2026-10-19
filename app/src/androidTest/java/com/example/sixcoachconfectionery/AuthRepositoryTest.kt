@@ -3,6 +3,7 @@ package com.example.sixcoachconfectionery
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.sixcoachconfectionery.data.repository.AuthRepository
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 import org.junit.Assert.assertNotNull
@@ -18,12 +19,27 @@ class AuthRepositoryTest {
     @Before
     fun setUp() {
         runBlocking {
-            try {
-                authRepository.seedAdminAccount("admin@email.com", "admin@123")
-                FirebaseAuth.getInstance().signInWithEmailAndPassword("admin@email.com", "admin@123").await()
+            val auth = FirebaseAuth.getInstance()
+            val firestore = FirebaseFirestore.getInstance()
+
+            val uid = try {
+                val createResult = auth.createUserWithEmailAndPassword("admin@email.com", "admin@123").await()
+                createResult.user?.uid ?: throw IllegalStateException("User is null")
             } catch (e: Exception) {
-                println("AuthRepositoryTest setUp error: ${e.message}")
+                val signInResult = auth.signInWithEmailAndPassword("admin@email.com", "admin@123").await()
+                signInResult.user?.uid ?: throw IllegalStateException("User is null after sign in")
             }
+
+            val adminProfile = mapOf(
+                "uid" to uid,
+                "email" to "admin@email.com",
+                "username" to "Admin",
+                "role" to "Admin",
+                "isAdmin" to true,
+                "createdAt" to System.currentTimeMillis()
+            )
+
+            firestore.collection("users").document(uid).set(adminProfile).await()
         }
     }
 
