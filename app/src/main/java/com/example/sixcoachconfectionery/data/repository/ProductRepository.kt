@@ -64,6 +64,42 @@ class ProductRepository(
         }
     }
 
+    /**
+     * Adds new inventory (Menu Item) to the database by the Admin, matching the Inventory Control UI in the screenshot:
+     * - Item Name (productName)
+     * - Category (categoryId / category)
+     * - Price (price)
+     * - Stock (quantityInStock)
+     * - Status (availability: "In Stock" / "Out of Stock")
+     */
+    suspend fun addNewInventoryItem(
+        itemName: String,
+        category: String,
+        price: Double,
+        stock: Int
+    ): Result<Product> {
+        return try {
+            val id = productsCollection.document().id
+            val availabilityStatus = if (stock > 0) "In Stock" else "Out of Stock"
+            val newProduct = Product(
+                productId = id,
+                productName = itemName,
+                categoryId = category,
+                price = price,
+                costPrice = price * 0.6,
+                quantityInStock = stock,
+                availability = availabilityStatus,
+                imageURL = "",
+                dateAdded = System.currentTimeMillis()
+            )
+
+            productsCollection.document(id).set(newProduct).await()
+            Result.success(newProduct)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun deleteProduct(productId: String): Result<Unit> {
         return try {
             productsCollection.document(productId).delete().await()

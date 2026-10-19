@@ -41,7 +41,7 @@
                 android:id="@+id/tvUserStatus"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="ST10385107@rcconnect.edu.za"
+                android:text="User"
                 android:textColor="@color/bakery_text_secondary"
                 android:textSize="12sp"
                 android:ellipsize="end"
@@ -83,17 +83,5 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1" />
-
-    <!-- Bottom Navigation Bar -->
-    <com.google.android.material.bottomnavigation.BottomNavigationView
-        android:id="@+id/bottomNavigation"
-        android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:background="@color/white"
-        app:elevation="8dp"
-        app:itemIconTint="@color/bakery_brown"
-        app:itemTextColor="@color/bakery_brown"
-        app:labelVisibilityMode="labeled"
-        app:menu="@menu/bottom_nav_menu" />
 
 </LinearLayout>
