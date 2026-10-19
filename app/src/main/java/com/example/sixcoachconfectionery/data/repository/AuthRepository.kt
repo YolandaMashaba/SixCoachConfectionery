@@ -115,9 +115,22 @@ class AuthRepository(
      */
     suspend fun deleteUser(uid: String): Result<Unit> {
         return try {
+            val currentUser = auth.currentUser
+            if (currentUser == null) {
+                throw IllegalStateException("Admin delete blocked: no authenticated user is signed in.")
+            }
+
+            val adminProfile = usersCollection.document(currentUser.uid).get().await()
+            val isAdminAccount = adminProfile.getBoolean("isAdmin") == true || adminProfile.getString("role") == "Admin"
+            if (!isAdminAccount) {
+                throw SecurityException("Permission denied: only admins can delete users.")
+            }
+
             usersCollection.document(uid).delete().await()
+            Log.d(TAG, "Deleted user profile for uid=$uid by admin uid=${currentUser.uid}")
             Result.success(Unit)
         } catch (e: Exception) {
+            Log.e(TAG, "Failed to delete user uid=$uid", e)
             Result.failure(e)
         }
     }
