@@ -8,15 +8,19 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.example.sixcoachconfectionery.MainActivity
-import com.example.sixcoachconfectionery.data.SixCoachConfectioneryRepository
+import com.example.sixcoachconfectionery.data.repository.AuthRepository
 import com.example.sixcoachconfectionery.databinding.FragmentRegisterBinding
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class RegisterFragment : Fragment() {
 
     private var _binding: FragmentRegisterBinding? = null
     private val binding get() = _binding!!
 
-    private lateinit var repository: SixCoachConfectioneryRepository
+    private val authRepository = AuthRepository()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -29,7 +33,6 @@ class RegisterFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        repository = SixCoachConfectioneryRepository.getInstance(requireContext())
 
         setupFields()
 
@@ -43,10 +46,10 @@ class RegisterFragment : Fragment() {
     }
 
     private fun setupFields() {
-        binding.inputRegUsername.setLabel("Username *")
-        binding.inputRegUsername.setHint("Choose a username or email")
+        binding.inputRegUsername.setLabel("Email / Username *")
+        binding.inputRegUsername.setHint("e.g. staff@whiskit.com")
 
-        binding.inputRegPassword.setLabel("Password (min 8 characters) *")
+        binding.inputRegPassword.setLabel("Password (min 6 characters) *")
         binding.inputRegPassword.setHint("Enter password")
         binding.inputRegPassword.setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
 
@@ -58,19 +61,20 @@ class RegisterFragment : Fragment() {
     private fun performRegistration() {
         binding.tvRegisterError.visibility = View.GONE
 
-        val username = binding.inputRegUsername.getText()
+        val email = binding.inputRegUsername.getText().trim()
         val password = binding.inputRegPassword.getText()
         val confirmPassword = binding.inputRegConfirmPassword.getText()
+        val selectedRole = if (binding.rbKitchenStaff.isChecked) "Kitchen Staff" else "Counter Staff"
 
         var hasError = false
 
-        if (username.isEmpty()) {
-            binding.inputRegUsername.setError("Username is required")
+        if (email.isEmpty()) {
+            binding.inputRegUsername.setError("Email is required")
             hasError = true
         }
 
-        if (password.length < 8) {
-            binding.inputRegPassword.setError("Password must be at least 8 characters")
+        if (password.length < 6) {
+            binding.inputRegPassword.setError("Password must be at least 6 characters")
             hasError = true
         }
 
@@ -81,13 +85,25 @@ class RegisterFragment : Fragment() {
 
         if (hasError) return
 
-        val result = repository.registerUser(username, password)
-        if (result.first) {
-            Toast.makeText(requireContext(), "Account created successfully!", Toast.LENGTH_SHORT).show()
-            (activity as? MainActivity)?.navigateToSales()
-        } else {
-            binding.tvRegisterError.text = result.second
-            binding.tvRegisterError.visibility = View.VISIBLE
+        binding.btnDoRegister.isEnabled = false
+
+        CoroutineScope(Dispatchers.IO).launch {
+            val result = authRepository.registerStaff(email, password, email.substringBefore("@"), selectedRole)
+            withContext(Dispatchers.Main) {
+                binding.btnDoRegister.isEnabled = true
+                if (result.isSuccess) {
+                    Toast.makeText(requireContext(), "Account created as $selectedRole!", Toast.LENGTH_SHORT).show()
+                    if (selectedRole == "Kitchen Staff") {
+                        (activity as? MainActivity)?.navigateToKitchen()
+                    } else {
+                        (activity as? MainActivity)?.navigateToSales()
+                    }
+                } else {
+                    val errorMsg = result.exceptionOrNull()?.localizedMessage ?: "Registration failed"
+                    binding.tvRegisterError.text = errorMsg
+                    binding.tvRegisterError.visibility = View.VISIBLE
+                }
+            }
         }
     }
 
