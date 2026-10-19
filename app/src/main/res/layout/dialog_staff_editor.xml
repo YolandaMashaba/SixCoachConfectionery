@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@color/white">
+
+    <TextView
+        android:id="@+id/tvStaffEditorTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Add New Staff"
+        android:textColor="@color/bakery_text_primary"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="Create a new staff account and assign permissions."
+        android:textColor="@color/bakery_text_secondary"
+        android:textSize="12sp" />
+
+    <com.example.sixcoachconfectionery.ui.controls.CustomInputField
+        android:id="@+id/inputStaffEmail"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Staff Role *"
+        android:textColor="@color/bakery_text_primary"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+    <RadioGroup
+        android:id="@+id/rgStaffRole"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="8dp">
+
+        <RadioButton
+            android:id="@+id/rbStaffCounter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Counter Staff"
+            android:checked="true"
+            android:textColor="@color/bakery_text_primary" />
+
+        <RadioButton
+            android:id="@+id/rbStaffKitchen"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Kitchen Staff"
+            android:textColor="@color/bakery_text_primary" />
+
+        <RadioButton
+            android:id="@+id/rbStaffAdmin"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Admin"
+            android:textColor="@color/bakery_text_primary" />
+    </RadioGroup>
+
+    <com.example.sixcoachconfectionery.ui.controls.CustomInputField
+        android:id="@+id/inputStaffPassword"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp" />
+
+    <TextView
+        android:id="@+id/tvStaffError"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/bakery_red"
+        android:textSize="13sp"
+        android:visibility="gone"
+        android:layout_marginTop="8dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end"
+        android:layout_marginTop="20dp">
+
+        <Button
+            android:id="@+id/btnCancelStaff"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:text="Cancel"
+            android:textColor="@color/bakery_brown"
+            app:strokeColor="@color/bakery_brown"
+            app:cornerRadius="8dp" />
+
+        <Button
+            android:id="@+id/btnSaveStaff"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:layout_marginStart="12dp"
+            android:text="Save"
+            android:textColor="@color/white"
+            android:backgroundTint="@color/bakery_brown"
+            app:cornerRadius="8dp" />
+
+    </LinearLayout>
+
+</LinearLayout>

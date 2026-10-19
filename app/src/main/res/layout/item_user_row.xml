@@ -1,58 +1,72 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:layout_marginBottom="8dp"
-    app:cardCornerRadius="10dp"
-    app:cardElevation="1dp"
-    app:strokeColor="@color/bakery_card_border"
-    app:strokeWidth="1dp"
-    app:cardBackgroundColor="@color/white">
+    android:layout_height="64dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingHorizontal="16dp"
+    android:background="?attr/selectableItemBackground">
 
-    <LinearLayout
-        android:layout_width="match_parent"
+    <TextView
+        android:id="@+id/tvUserUsername"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:padding="12dp">
+        android:layout_weight="3.0"
+        android:text="ST10385107@rcconnect.edu.za"
+        android:textColor="@color/bakery_text_primary"
+        android:textSize="13sp"
+        android:ellipsize="end"
+        android:maxLines="1" />
 
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
+    <!-- Role Badge -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1.5"
+        android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/tvUserUsername"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="ST10385107@rcconnect.edu.za"
-                android:textColor="@color/bakery_text_primary"
-                android:textSize="15sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tvUserRoleBadge"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Role: Admin"
-                android:textColor="@color/bakery_brown"
-                android:textSize="12sp" />
-
-        </LinearLayout>
-
-        <Button
-            android:id="@+id/btnToggleAdmin"
-            style="?attr/materialButtonOutlinedStyle"
+        <TextView
+            android:id="@+id/tvUserRoleBadge"
             android:layout_width="wrap_content"
-            android:layout_height="38dp"
-            android:text="Toggle Admin"
-            android:textColor="@color/bakery_brown"
+            android:layout_height="wrap_content"
+            android:text="Admin"
+            android:textColor="#2E7D32"
             android:textSize="12sp"
-            app:cornerRadius="6dp" />
+            android:textStyle="bold"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="4dp"
+            android:background="@drawable/bg_button_green" />
 
     </LinearLayout>
 
-</com.google.android.material.card.MaterialCardView>
+    <!-- Actions (Edit & Delete) -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1.5"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <ImageButton
+            android:id="@+id/btnEditUser"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="@drawable/bg_custom_input"
+            android:contentDescription="Edit user role"
+            android:src="@drawable/ic_edit"
+            app:tint="@color/bakery_brown" />
+
+        <ImageButton
+            android:id="@+id/btnDeleteUser"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginStart="12dp"
+            android:background="@drawable/bg_custom_input"
+            android:contentDescription="Delete user"
+            android:src="@drawable/ic_delete"
+            app:tint="@color/bakery_red" />
+
+    </LinearLayout>
+
+</LinearLayout>
