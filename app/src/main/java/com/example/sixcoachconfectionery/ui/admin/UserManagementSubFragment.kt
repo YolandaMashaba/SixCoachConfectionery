@@ -6,24 +6,23 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.example.sixcoachconfectionery.data.SixCoachConfectioneryRepository
+import com.example.sixcoachconfectionery.data.repository.AuthRepository
 import com.example.sixcoachconfectionery.databinding.FragmentAdminUsersBinding
 import com.example.sixcoachconfectionery.ui.adapters.UserAdapter
+import com.example.sixcoachconfectionery.ui.dialogs.StaffEditorDialogFragment
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class UserManagementSubFragment : Fragment() {
 
     private var _binding: FragmentAdminUsersBinding? = null
     private val binding get() = _binding!!
 
-    private lateinit var repository: SixCoachConfectioneryRepository
+    private val authRepository = AuthRepository()
     private lateinit var userAdapter: UserAdapter
-
-    private val repoChangeListener = {
-        if (isAdded) {
-            refreshUsers()
-        }
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -36,33 +35,64 @@ class UserManagementSubFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        repository = SixCoachConfectioneryRepository.getInstance(requireContext())
-        repository.addChangeListener(repoChangeListener)
 
         setupAdapter()
+
+        binding.btnAddStaff.setOnClickListener {
+            val staffDialog = StaffEditorDialogFragment(null) {
+                refreshUsers()
+                Toast.makeText(requireContext(), "Staff account created successfully!", Toast.LENGTH_SHORT).show()
+            }
+            staffDialog.show(parentFragmentManager, "StaffEditorDialog")
+        }
+
         refreshUsers()
     }
 
     private fun setupAdapter() {
-        userAdapter = UserAdapter(emptyList()) { user ->
-            val updated = repository.toggleUserAdminStatus(user.id)
-            if (updated) {
-                Toast.makeText(requireContext(), "Updated admin status for '${user.username}'", Toast.LENGTH_SHORT).show()
-                refreshUsers()
+        userAdapter = UserAdapter(
+            emptyList(),
+            { user ->
+                // Open edit staff dialog pre-filled with user details
+                val staffDialog = StaffEditorDialogFragment(user) {
+                    refreshUsers()
+                    Toast.makeText(requireContext(), "Staff role updated successfully!", Toast.LENGTH_SHORT).show()
+                }
+                staffDialog.show(parentFragmentManager, "StaffEditorDialog")
+            },
+            { user ->
+                lifecycleScope.launch(Dispatchers.IO) {
+                    val result = authRepository.deleteUser(user.uid)
+                    withContext(Dispatchers.Main) {
+                        if (result.isSuccess) {
+                            Toast.makeText(requireContext(), "Deleted user '${user.username.ifEmpty { user.email }}'", Toast.LENGTH_SHORT).show()
+                            refreshUsers()
+                        } else {
+                            Toast.makeText(requireContext(), "Failed to delete user", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
             }
-        }
+        )
+
         binding.rvUsersList.layoutManager = LinearLayoutManager(requireContext())
         binding.rvUsersList.adapter = userAdapter
     }
 
     private fun refreshUsers() {
-        val users = repository.getUsers()
-        userAdapter.updateData(users)
+        lifecycleScope.launch(Dispatchers.IO) {
+            val result = authRepository.getAllUsers()
+            withContext(Dispatchers.Main) {
+                if (result.isSuccess) {
+                    val users = result.getOrNull() ?: emptyList()
+                    userAdapter.updateData(users)
+                }
+            }
+        }
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
-        repository.removeChangeListener(repoChangeListener)
         _binding = null
     }
 }
