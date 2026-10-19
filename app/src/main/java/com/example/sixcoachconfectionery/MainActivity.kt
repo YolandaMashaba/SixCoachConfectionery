@@ -12,6 +12,7 @@ import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import androidx.fragment.app.Fragment
 import com.example.sixcoachconfectionery.data.SixCoachConfectioneryRepository
+import com.example.sixcoachconfectionery.data.model.UserProfile
 import com.example.sixcoachconfectionery.databinding.ActivityMainBinding
 import com.example.sixcoachconfectionery.ui.admin.AdminFragment
 import com.example.sixcoachconfectionery.ui.auth.LoginFragment
@@ -47,19 +48,34 @@ class MainActivity : AppCompatActivity() {
         repository.addChangeListener(repoChangeListener)
 
         setupHeader()
-        setupBottomNavigation()
 
-        // Start on Sales Terminal by default
-        navigateToSales()
+        // Force fresh start on Login page every time the app runs
+        auth.signOut()
+        repository.logout()
+        navigateToLogin()
+    }
+
+    fun onUserLoggedIn(profile: UserProfile) {
+        updateHeaderUserStatus()
+        when {
+            profile.isAdmin || profile.role == "Admin" -> navigateToAdmin()
+            profile.role == "Kitchen Staff" -> navigateToKitchen()
+            else -> navigateToSales()
+        }
+    }
+
+    fun onUserLoggedOut() {
+        auth.signOut()
+        repository.logout()
+        navigateToLogin()
+        Toast.makeText(this, "Logged out", Toast.LENGTH_SHORT).show()
     }
 
     private fun setupHeader() {
         updateHeaderUserStatus()
 
         binding.btnLogout.setOnClickListener {
-            repository.logout()
-            Toast.makeText(this, "Logged out", Toast.LENGTH_SHORT).show()
-            navigateToLogin()
+            onUserLoggedOut()
         }
 
         binding.btnHeaderAuth.setOnClickListener {
@@ -69,42 +85,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateHeaderUserStatus() {
         val user = repository.getCurrentUser()
-        if (user != null) {
+        val authUser = auth.currentUser
+        if (authUser != null) {
             binding.layoutUserInfo.visibility = View.VISIBLE
             binding.btnHeaderAuth.visibility = View.GONE
-            binding.tvUserStatus.text = user.username
+            binding.tvUserStatus.text = user?.username ?: authUser.email ?: "Staff"
         } else {
             binding.layoutUserInfo.visibility = View.GONE
             binding.btnHeaderAuth.visibility = View.VISIBLE
-        }
-    }
-
-    private fun setupBottomNavigation() {
-        binding.bottomNavigation.setOnItemSelectedListener { item ->
-            when (item.itemId) {
-                R.id.nav_sales -> {
-                    replaceFragment(SalesFragment())
-                    true
-                }
-                R.id.nav_kitchen -> {
-                    replaceFragment(KitchenFragment())
-                    true
-                }
-                R.id.nav_admin -> {
-                    replaceFragment(AdminFragment())
-                    true
-                }
-                R.id.nav_account -> {
-                    if (repository.getCurrentUser() != null) {
-                        replaceFragment(SalesFragment())
-                        Toast.makeText(this, "Logged in as ${repository.getCurrentUser()?.username}", Toast.LENGTH_SHORT).show()
-                    } else {
-                        replaceFragment(LoginFragment())
-                    }
-                    true
-                }
-                else -> false
-            }
         }
     }
 
@@ -115,15 +103,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun navigateToSales() {
-        binding.bottomNavigation.selectedItemId = R.id.nav_sales
+        replaceFragment(SalesFragment())
     }
 
     fun navigateToKitchen() {
-        binding.bottomNavigation.selectedItemId = R.id.nav_kitchen
+        replaceFragment(KitchenFragment())
     }
 
     fun navigateToAdmin() {
-        binding.bottomNavigation.selectedItemId = R.id.nav_admin
+        replaceFragment(AdminFragment())
     }
 
     fun navigateToLogin() {

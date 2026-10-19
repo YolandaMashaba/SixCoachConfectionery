@@ -12,9 +12,9 @@ class AuthRepository(
     private val usersCollection = firestore.collection("users")
 
     /**
-     * Staff self-registration: creates Firebase Auth account and stores user profile in Firestore with role = "Staff", isAdmin = false.
+     * Staff self-registration: creates Firebase Auth account and stores user profile in Firestore with role specified ("Counter Staff" or "Kitchen Staff"), isAdmin = false.
      */
-    suspend fun registerStaff(email: String, pass: String, username: String): Result<UserProfile> {
+    suspend fun registerStaff(email: String, pass: String, username: String, role: String = "Counter Staff"): Result<UserProfile> {
         return try {
             val authResult = auth.createUserWithEmailAndPassword(email, pass).await()
             val firebaseUser = authResult.user ?: throw IllegalStateException("Firebase user is null after registration")
@@ -23,7 +23,7 @@ class AuthRepository(
                 uid = firebaseUser.uid,
                 email = email,
                 username = username,
-                role = "Staff",
+                role = role,
                 isAdmin = false,
                 createdAt = System.currentTimeMillis()
             )

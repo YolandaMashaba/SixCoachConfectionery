@@ -5,6 +5,10 @@ import com.example.sixcoachconfectionery.data.models.CartItem
 import com.example.sixcoachconfectionery.data.models.Item
 import com.example.sixcoachconfectionery.data.models.Order
 import com.example.sixcoachconfectionery.data.models.User
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -21,7 +25,13 @@ class SixCoachConfectioneryRepository private constructor(private val context: C
     private val listeners = mutableListOf<() -> Unit>()
 
     init {
-        loadFromDisk()
+        seedDefaultData()
+        CoroutineScope(Dispatchers.IO).launch {
+            loadFromDisk()
+            withContext(Dispatchers.Main) {
+                listeners.forEach { it.invoke() }
+            }
+        }
     }
 
     fun addChangeListener(listener: () -> Unit) {
@@ -33,7 +43,9 @@ class SixCoachConfectioneryRepository private constructor(private val context: C
     }
 
     private fun notifyDataChanged() {
-        saveToDisk()
+        CoroutineScope(Dispatchers.IO).launch {
+            saveToDisk()
+        }
         listeners.forEach { it.invoke() }
     }
 
@@ -89,22 +101,7 @@ class SixCoachConfectioneryRepository private constructor(private val context: C
         items.clear()
         orders.clear()
 
-        // Default Admin user
-        val adminUser = User(
-            id = "usr_admin",
-            username = "ST10385107@rcconnect.edu.za",
-            passwordHash = "password123",
-            isAdmin = true
-        )
-        val staffUser = User(
-            id = "usr_zwide",
-            username = "Zwide",
-            passwordHash = "password123",
-            isAdmin = false
-        )
-        users.add(adminUser)
-        users.add(staffUser)
-        currentUser = adminUser
+        currentUser = null
 
         // Default Items
         val gwinya = Item(
