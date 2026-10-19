@@ -31,52 +31,79 @@ class SixCoachRepositoryTest {
         return constructor.newInstance(context)
     }
 
+    private fun waitUntil(timeoutMs: Long = 5000, condition: () -> Boolean): Boolean {
+        val end = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < end) {
+            if (condition()) return true
+            Thread.sleep(50)
+        }
+        return condition()
+    }
+
+    private fun storeFile(dir: File) = File(dir, "six_coach_confectionery_store.json")
+
     @Before
     fun setUp() {
         folder = tempFolder.newFolder()
         repo = newRepo(folder)
+        // The repository loads in the background; wait until it has written its store file.
+        waitUntil { storeFile(folder).exists() && storeFile(folder).length() > 0 }
+        Thread.sleep(200)
     }
 
     @Test
-    fun freshStore_isSeededWithDefaultData() {
-        assertEquals(2, repo.getUsers().size)
+    fun freshStore_isSeededWithDefaultItemsAndOrders() {
         assertEquals(2, repo.getAllItems().size)
         assertEquals(2, repo.getOrders().size)
+        assertEquals(0, repo.getUsers().size)
+    }
+
+    @Test
+    fun register_firstUser_becomesAdmin() {
+        val result = repo.registerUser("boss", "abc")
+        assertTrue(result.first)
+        assertTrue(repo.getCurrentUser()!!.isAdmin)
+    }
+
+    @Test
+    fun register_secondUser_isNotAdmin() {
+        repo.registerUser("boss", "abc")
+        val result = repo.registerUser("cashier", "abc")
+        assertTrue(result.first)
+        assertEquals(2, repo.getUsers().size)
+        assertFalse(repo.getCurrentUser()!!.isAdmin)
+    }
+
+    @Test
+    fun register_duplicateUsername_isRejected() {
+        repo.registerUser("cashier", "abc")
+        val result = repo.registerUser("CASHIER", "abc")
+        assertFalse(result.first)
+        assertEquals(1, repo.getUsers().size)
     }
 
     @Test
     fun login_withCorrectCredentials_succeeds() {
-        val result = repo.loginUser("Zwide", "password123")
+        repo.registerUser("cashier", "pass123")
+        repo.logout()
+        val result = repo.loginUser("cashier", "pass123")
         assertTrue(result.first)
     }
 
     @Test
     fun login_withWrongPassword_fails() {
-        val result = repo.loginUser("Zwide", "wrong")
+        repo.registerUser("cashier", "pass123")
+        repo.logout()
+        val result = repo.loginUser("cashier", "wrong")
         assertFalse(result.first)
         assertEquals("Invalid password", result.second)
     }
 
     @Test
     fun login_withUnknownUser_fails() {
-        val result = repo.loginUser("nobody", "password123")
+        val result = repo.loginUser("nobody", "pass123")
         assertFalse(result.first)
         assertEquals("User not found", result.second)
-    }
-
-    @Test
-    fun register_duplicateUsername_isRejected() {
-        val result = repo.registerUser("zwide", "abc")
-        assertFalse(result.first)
-        assertEquals(2, repo.getUsers().size)
-    }
-
-    @Test
-    fun register_newUser_succeedsAndIsNotAdmin() {
-        val result = repo.registerUser("newcashier", "abc")
-        assertTrue(result.first)
-        assertEquals(3, repo.getUsers().size)
-        assertFalse(repo.getCurrentUser()!!.isAdmin)
     }
 
     @Test
@@ -122,7 +149,11 @@ class SixCoachRepositoryTest {
     @Test
     fun data_persistsAcrossRepositoryInstances() {
         repo.registerUser("persisted", "abc")
+        // Saving happens in the background; wait until it reaches the file.
+        waitUntil { storeFile(folder).readText().contains("persisted") }
         val reloaded = newRepo(folder)
-        assertTrue(reloaded.getUsers().any { it.username == "persisted" })
+        // Loading also happens in the background; wait for the user to appear.
+        val found = waitUntil { reloaded.getUsers().any { it.username == "persisted" } }
+        assertTrue(found)
     }
 }

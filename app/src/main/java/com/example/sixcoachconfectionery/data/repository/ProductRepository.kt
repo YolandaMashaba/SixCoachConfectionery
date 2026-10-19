@@ -7,11 +7,12 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 
 class ProductRepository(
-    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
+    private val firestoreProvider: () -> FirebaseFirestore = { FirebaseFirestore.getInstance() }
 ) {
-    private val categoriesCollection = firestore.collection("categories")
-    private val productsCollection = firestore.collection("products")
-    private val inventoryCollection = firestore.collection("inventory_transactions")
+    private val firestore by lazy { firestoreProvider() }
+    private val categoriesCollection by lazy { firestore.collection("categories") }
+    private val productsCollection by lazy { firestore.collection("products") }
+    private val inventoryCollection by lazy { firestore.collection("inventory_transactions") }
 
     // Categories
     suspend fun getCategories(): Result<List<Category>> {
