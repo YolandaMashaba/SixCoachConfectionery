@@ -11,16 +11,18 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 
 class OrderRepository(
-    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
+    private val firestoreProvider: () -> FirebaseFirestore = { FirebaseFirestore.getInstance() }
 ) {
     companion object {
         private const val TAG = "OrderRepository"
     }
-    private val ordersCollection = firestore.collection("orders")
-    private val orderItemsCollection = firestore.collection("order_items")
-    private val paymentsCollection = firestore.collection("payments")
-    private val kitchenOrdersCollection = firestore.collection("kitchen_orders")
-    private val kitchenOrderItemsCollection = firestore.collection("kitchen_order_items")
+  
+    private val firestore by lazy { firestoreProvider() }
+    private val ordersCollection by lazy { firestore.collection("orders") }
+    private val orderItemsCollection by lazy { firestore.collection("order_items") }
+    private val paymentsCollection by lazy { firestore.collection("payments") }
+    private val kitchenOrdersCollection by lazy { firestore.collection("kitchen_orders") }
+    private val kitchenOrderItemsCollection by lazy { firestore.collection("kitchen_order_items") }
 
     suspend fun createCompleteOrder(
         order: Order,
