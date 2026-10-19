@@ -106,6 +106,18 @@ class AuthRepository(
     }
 
     /**
+     * Deletes a user profile document from Firestore (Admin feature).
+     */
+    suspend fun deleteUser(uid: String): Result<Unit> {
+        return try {
+            usersCollection.document(uid).delete().await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
      * Programmatically seeds the default Admin account (email: admin@email.com, password: admin@123)
      * in Firebase Authentication and ensures its Firestore document exists with isAdmin = true and role = "Admin".
      */
