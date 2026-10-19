@@ -2,8 +2,11 @@ package com.example.sixcoachconfectionery
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.sixcoachconfectionery.data.repository.AuthRepository
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.tasks.await
 import org.junit.Assert.assertNotNull
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -11,6 +14,18 @@ import org.junit.runner.RunWith
 class AuthRepositoryTest {
 
     private val authRepository = AuthRepository()
+
+    @Before
+    fun setUp() {
+        runBlocking {
+            try {
+                authRepository.seedAdminAccount("admin@email.com", "admin@123")
+                FirebaseAuth.getInstance().signInWithEmailAndPassword("admin@email.com", "admin@123").await()
+            } catch (e: Exception) {
+                println("AuthRepositoryTest setUp error: ${e.message}")
+            }
+        }
+    }
 
     @Test
     fun testGetAllUsers() = runBlocking {
