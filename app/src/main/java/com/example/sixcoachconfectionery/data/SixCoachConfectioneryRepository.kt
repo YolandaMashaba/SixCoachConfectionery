@@ -8,6 +8,7 @@ import com.example.sixcoachconfectionery.data.models.User
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -24,7 +25,13 @@ class SixCoachConfectioneryRepository private constructor(private val context: C
     private val listeners = mutableListOf<() -> Unit>()
 
     init {
-        loadFromDisk()
+        seedDefaultData()
+        CoroutineScope(Dispatchers.IO).launch {
+            loadFromDisk()
+            withContext(Dispatchers.Main) {
+                listeners.forEach { it.invoke() }
+            }
+        }
     }
 
     fun addChangeListener(listener: () -> Unit) {
