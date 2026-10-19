@@ -36,7 +36,7 @@ class LoginFragment : Fragment() {
 
         setupFields()
 
-        // Also ensure default admin account is seeded for seamless admin login
+        // Seed default admin account asynchronously on background thread
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 authRepository.seedAdminAccount("admin@email.com", "admin@123")
@@ -47,7 +47,7 @@ class LoginFragment : Fragment() {
             performLogin()
         }
 
-        binding.tvNavRegister.setOnClickListener {
+        binding.root.findViewById<View>(com.example.sixcoachconfectionery.R.id.tvNavRegister)?.setOnClickListener {
             (activity as? MainActivity)?.navigateToRegister()
         }
     }
@@ -88,17 +88,10 @@ class LoginFragment : Fragment() {
                 if (result.isSuccess) {
                     val userProfile = result.getOrNull()
                     Toast.makeText(requireContext(), "Welcome back, ${userProfile?.username ?: email}!", Toast.LENGTH_SHORT).show()
-
-                    when {
-                        userProfile?.isAdmin == true || userProfile?.role == "Admin" -> {
-                            (activity as? MainActivity)?.navigateToAdmin()
-                        }
-                        userProfile?.role == "Kitchen Staff" -> {
-                            (activity as? MainActivity)?.navigateToKitchen()
-                        }
-                        else -> {
-                            (activity as? MainActivity)?.navigateToSales()
-                        }
+                    if (userProfile != null) {
+                        (activity as? MainActivity)?.onUserLoggedIn(userProfile)
+                    } else {
+                        (activity as? MainActivity)?.navigateToSales()
                     }
                 } else {
                     val errorMsg = result.exceptionOrNull()?.localizedMessage ?: "Login failed. Check credentials."
