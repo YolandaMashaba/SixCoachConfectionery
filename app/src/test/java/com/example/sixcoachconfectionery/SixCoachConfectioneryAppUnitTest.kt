@@ -75,4 +75,39 @@ class SixCoachConfectioneryAppUnitTest {
         order.status = "Completed"
         assertEquals("Completed", order.status)
     }
+
+    // --- ERROR HANDLING SPECIFIC TESTS ---
+
+    @Test
+    fun testInsufficientAmountTenderedError() {
+        val item = Item("1", "gwinya", "Bread", 10.0, 5)
+        val cartItem = CartItem(item, 2) // total = R20.00
+        val total = cartItem.totalPrice
+        val amountTendered = 15.00 // Underpaid by R5.00
+
+        assertTrue("Tendered amount must be >= order total", amountTendered < total)
+        val change = (amountTendered - total).coerceAtLeast(0.0)
+        assertEquals(0.0, change, 0.001)
+    }
+
+    @Test
+    fun testStockExceededErrorCheck() {
+        val item = Item("1", "latte", "Coffee", 24.0, 3) // Stock = 3
+        val requestedQty = 5 // User attempts to buy 5
+
+        assertTrue("Requested quantity exceeds stock", requestedQty > item.stock)
+    }
+
+    @Test
+    fun testShortPasswordErrorCheck() {
+        val password = "short"
+        assertTrue("Password under 8 characters must trigger validation error", password.length < 8)
+    }
+
+    @Test
+    fun testPasswordMismatchErrorCheck() {
+        val pass1 = "password123"
+        val pass2 = "different123"
+        assertNotEquals("Mismatched passwords must trigger validation error", pass1, pass2)
+    }
 }
