@@ -18,14 +18,15 @@ class ProductRepositoryTest {
     private val authRepository = AuthRepository()
 
     @Before
-    fun setUp() = runBlocking {
-        try {
-            FirebaseAuth.getInstance().signInWithEmailAndPassword("admin@email.com", "admin@123").await()
-        } catch (e: Exception) {
-            authRepository.seedAdminAccount("admin@email.com", "admin@123")
+    fun setUp() {
+        runBlocking {
             try {
+                // Seed admin account with the specified email and await sign-in task
+                authRepository.seedAdminAccount("admin@email.com", "admin@123")
                 FirebaseAuth.getInstance().signInWithEmailAndPassword("admin@email.com", "admin@123").await()
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                println("ProductRepositoryTest setUp error: ${e.message}")
+            }
         }
     }
 
