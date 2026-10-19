@@ -36,16 +36,39 @@ class AuthRepository(
     }
 
     /**
-     * Login for both Staff and Admin: signs in via Firebase Auth and fetches their Firestore user profile to resolve role/isAdmin status.
+     * Login for both Staff and Admin: signs in via Firebase Auth and fetches/ensures their Firestore user profile to resolve role/isAdmin status.
      */
     suspend fun loginUser(email: String, pass: String): Result<UserProfile> {
         return try {
             val authResult = auth.signInWithEmailAndPassword(email, pass).await()
             val firebaseUser = authResult.user ?: throw IllegalStateException("Firebase user is null after sign in")
 
-            val docSnapshot = usersCollection.document(firebaseUser.uid).get().await()
-            val profile = docSnapshot.toObject(UserProfile::class.java)
-                ?: UserProfile(uid = firebaseUser.uid, email = email, username = email.substringBefore("@"), role = "Staff", isAdmin = false)
+            val docRef = usersCollection.document(firebaseUser.uid)
+            val docSnapshot = docRef.get().await()
+
+            val isAdminUser = email.equals("admin@email.com", ignoreCase = true)
+
+            val profile = if (docSnapshot.exists()) {
+                val existing = docSnapshot.toObject(UserProfile::class.java) ?: UserProfile(uid = firebaseUser.uid, email = email)
+                if (isAdminUser && (!existing.isAdmin || existing.role != "Admin")) {
+                    val updated = existing.copy(isAdmin = true, role = "Admin")
+                    docRef.set(updated).await()
+                    updated
+                } else {
+                    existing
+                }
+            } else {
+                val newProfile = UserProfile(
+                    uid = firebaseUser.uid,
+                    email = email,
+                    username = email.substringBefore("@"),
+                    role = if (isAdminUser) "Admin" else "Counter Staff",
+                    isAdmin = isAdminUser,
+                    createdAt = System.currentTimeMillis()
+                )
+                docRef.set(newProfile).await()
+                newProfile
+            }
 
             Result.success(profile)
         } catch (e: Exception) {
