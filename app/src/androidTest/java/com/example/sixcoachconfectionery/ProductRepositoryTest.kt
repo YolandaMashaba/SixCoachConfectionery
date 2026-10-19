@@ -70,5 +70,12 @@ class ProductRepositoryTest {
         org.junit.Assert.assertEquals(15.00, product?.price ?: 0.0, 0.01)
         org.junit.Assert.assertEquals(25, product?.quantityInStock)
         org.junit.Assert.assertEquals("In Stock", product?.availability)
+
+        // Verify that the inventory item is actually stored and retrievable in Firestore
+        val fetchResult = productRepository.getProductById(product!!.productId)
+        org.junit.Assert.assertTrue(fetchResult.isSuccess)
+        val fetchedProduct = fetchResult.getOrNull()
+        assertNotNull(fetchedProduct)
+        org.junit.Assert.assertEquals("Test Muffin", fetchedProduct?.productName)
     }
 }
