@@ -6,9 +6,9 @@ import com.example.sixcoachconfectionery.data.model.KitchenOrderItem
 import com.example.sixcoachconfectionery.data.model.Order
 import com.example.sixcoachconfectionery.data.model.OrderItem
 import com.example.sixcoachconfectionery.data.model.Payment
-import com.example.sixcoachconfectionery.data.repository.AuthRepository
 import com.example.sixcoachconfectionery.data.repository.OrderRepository
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 import org.junit.Assert.assertNotNull
@@ -20,18 +20,31 @@ import org.junit.runner.RunWith
 class OrderRepositoryTest {
 
     private val orderRepository = OrderRepository()
-    private val authRepository = AuthRepository()
 
     @Before
     fun setUp() {
         runBlocking {
-            try {
-                // Seed admin account with the specified email and await sign-in task
-                authRepository.seedAdminAccount("ST10385107@rcconnect.edu.za", "admin@123")
-                FirebaseAuth.getInstance().signInWithEmailAndPassword("ST10385107@rcconnect.edu.za", "admin@123").await()
+            val auth = FirebaseAuth.getInstance()
+            val firestore = FirebaseFirestore.getInstance()
+
+            val uid = try {
+                val createResult = auth.createUserWithEmailAndPassword("admin@email.com", "admin@123").await()
+                createResult.user?.uid ?: throw IllegalStateException("User is null")
             } catch (e: Exception) {
-                println("OrderRepositoryTest setUp error: ${e.message}")
+                val signInResult = auth.signInWithEmailAndPassword("admin@email.com", "admin@123").await()
+                signInResult.user?.uid ?: throw IllegalStateException("User is null after sign in")
             }
+
+            val adminProfile = mapOf(
+                "uid" to uid,
+                "email" to "admin@email.com",
+                "username" to "Admin",
+                "role" to "Admin",
+                "isAdmin" to true,
+                "createdAt" to System.currentTimeMillis()
+            )
+
+            firestore.collection("users").document(uid).set(adminProfile).await()
         }
     }
 
