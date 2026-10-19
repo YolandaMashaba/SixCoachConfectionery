@@ -42,7 +42,7 @@ class StaffEditorDialogFragment(
         if (existingUser != null) {
             binding.tvStaffEditorTitle.text = "Edit Staff Role"
             binding.inputStaffEmail.setText(existingUser.email.ifEmpty { existingUser.username })
-            binding.inputStaffEmail.isEnabled = false // Email cannot be changed here
+            binding.inputStaffEmail.isEnabled = false
 
             when (existingUser.role) {
                 "Admin" -> binding.rgStaffRole.check(R.id.rbStaffAdmin)
@@ -66,13 +66,12 @@ class StaffEditorDialogFragment(
         binding.inputStaffEmail.setLabel("Staff Email *")
         binding.inputStaffEmail.setHint("e.g. staff@whiskit.com")
 
-        binding.inputStaffPassword.setLabel("Password (min 8 chars, Upper, Lower, Number, Special)")
-        binding.inputStaffPassword.setHint("Enter strong password (optional for edit)")
+        binding.inputStaffPassword.setLabel("Password (min 8 chars, Upper, Lower, Number, Special) *")
+        binding.inputStaffPassword.setHint("Enter strong password")
         binding.inputStaffPassword.setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
     }
 
     private fun isPasswordStrong(password: String): Pair<Boolean, String> {
-        if (password.isEmpty()) return Pair(true, "")
         if (password.length < 8) {
             return Pair(false, "Password must be at least 8 characters long.")
         }
@@ -110,12 +109,14 @@ class StaffEditorDialogFragment(
             hasError = true
         }
 
-        val passCheck = isPasswordStrong(password)
-        if (!passCheck.first) {
-            binding.inputStaffPassword.setError(passCheck.second)
-            binding.tvStaffError.text = passCheck.second
-            binding.tvStaffError.visibility = View.VISIBLE
-            hasError = true
+        if (existingUser == null || password.isNotEmpty()) {
+            val passCheck = isPasswordStrong(password)
+            if (!passCheck.first) {
+                binding.inputStaffPassword.setError(passCheck.second)
+                binding.tvStaffError.text = passCheck.second
+                binding.tvStaffError.visibility = View.VISIBLE
+                hasError = true
+            }
         }
 
         if (hasError) return
@@ -127,7 +128,7 @@ class StaffEditorDialogFragment(
                 authRepository.updateUserRole(existingUser.uid, role, isAdmin)
             } else {
                 if (isAdmin) {
-                    authRepository.seedAdminAccount(email, password.ifEmpty { "admin@123" })
+                    authRepository.seedAdminAccount(email, password)
                 } else {
                     authRepository.registerStaff(email, password, email.substringBefore("@"), role)
                 }
