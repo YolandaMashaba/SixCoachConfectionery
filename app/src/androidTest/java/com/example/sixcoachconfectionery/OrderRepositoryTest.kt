@@ -23,14 +23,15 @@ class OrderRepositoryTest {
     private val authRepository = AuthRepository()
 
     @Before
-    fun setUp() = runBlocking {
-        try {
-            FirebaseAuth.getInstance().signInWithEmailAndPassword("admin@email.com", "admin@123").await()
-        } catch (e: Exception) {
-            authRepository.seedAdminAccount("admin@email.com", "admin@123")
+    fun setUp() {
+        runBlocking {
             try {
-                FirebaseAuth.getInstance().signInWithEmailAndPassword("admin@email.com", "admin@123").await()
-            } catch (_: Exception) {}
+                // Seed admin account with the specified email and await sign-in task
+                authRepository.seedAdminAccount("ST10385107@rcconnect.edu.za", "admin@123")
+                FirebaseAuth.getInstance().signInWithEmailAndPassword("ST10385107@rcconnect.edu.za", "admin@123").await()
+            } catch (e: Exception) {
+                println("OrderRepositoryTest setUp error: ${e.message}")
+            }
         }
     }
 
