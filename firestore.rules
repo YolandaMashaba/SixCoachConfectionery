@@ -38,11 +38,17 @@ service cloud.firestore {
     match /products/{productId} {
       allow read: if true;
       allow create, delete: if isAdmin();
-      allow update: if isStaff() &&
-        request.resource.data.price is number && request.resource.data.price >= 0 &&
-        (!('costPrice' in request.resource.data) || (request.resource.data.costPrice is number && request.resource.data.costPrice >= 0)) &&
-        request.resource.data.productName is string && request.resource.data.productName.size() > 0 &&
-        request.resource.data.quantityInStock is number && request.resource.data.quantityInStock >= 0;
+      allow update: if isAuthenticated() &&
+        request.resource.data.productName == resource.data.productName &&
+        request.resource.data.categoryId == resource.data.categoryId &&
+        request.resource.data.price == resource.data.price &&
+        request.resource.data.costPrice == resource.data.costPrice &&
+        request.resource.data.imageURL == resource.data.imageURL &&
+        request.resource.data.dateAdded == resource.data.dateAdded &&
+        request.resource.data.quantityInStock is number &&
+        request.resource.data.quantityInStock >= 0 &&
+        request.resource.data.quantityInStock <= resource.data.quantityInStock &&
+        request.resource.data.availability in ['In Stock', 'Out of Stock'];
     }
 
     // 2. Customers
@@ -92,7 +98,17 @@ service cloud.firestore {
 
     // 7. Inventory Transactions & Sales Analytics
     match /inventory_transactions/{transactionId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+        request.resource.data.staffId == request.auth.uid &&
+        request.resource.data.productId is string &&
+        request.resource.data.productId.size() > 0 &&
+        request.resource.data.quantity is number &&
+        request.resource.data.quantity > 0 &&
+        request.resource.data.transactionType == 'Sale' &&
+        request.resource.data.notes is string &&
+        request.resource.data.transactionId == transactionId;
+      allow update, delete: if isAdmin();
     }
 
     match /sales_analytics/{analyticsId} {
