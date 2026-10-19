@@ -88,19 +88,13 @@ class AuthRepository(
      */
     suspend fun seedAdminAccount(adminEmail: String = "admin@email.com", adminPass: String = "admin@123"): Result<UserProfile> {
         return try {
-            val signInResult = try {
-                auth.signInWithEmailAndPassword(adminEmail, adminPass).await()
-                true
-            } catch (e: Exception) {
-                false
-            }
-
-            val firebaseUser = if (signInResult) {
-                auth.currentUser
-            } else {
+            val firebaseUser = try {
                 val createResult = auth.createUserWithEmailAndPassword(adminEmail, adminPass).await()
                 createResult.user
-            } ?: throw IllegalStateException("Failed to seed admin user auth")
+            } catch (e: Exception) {
+                val signInResult = auth.signInWithEmailAndPassword(adminEmail, adminPass).await()
+                signInResult.user
+            } ?: throw IllegalStateException("Failed to authenticate admin user")
 
             val adminProfile = UserProfile(
                 uid = firebaseUser.uid,
