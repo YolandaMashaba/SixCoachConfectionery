@@ -8,15 +8,19 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.example.sixcoachconfectionery.MainActivity
-import com.example.sixcoachconfectionery.data.SixCoachConfectioneryRepository
+import com.example.sixcoachconfectionery.data.repository.AuthRepository
 import com.example.sixcoachconfectionery.databinding.FragmentLoginBinding
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class LoginFragment : Fragment() {
 
     private var _binding: FragmentLoginBinding? = null
     private val binding get() = _binding!!
 
-    private lateinit var repository: SixCoachConfectioneryRepository
+    private val authRepository = AuthRepository()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -29,22 +33,28 @@ class LoginFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        repository = SixCoachConfectioneryRepository.getInstance(requireContext())
 
         setupFields()
+
+        // Seed default admin account asynchronously on background thread
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                authRepository.seedAdminAccount("admin@email.com", "admin@123")
+            } catch (_: Exception) {}
+        }
 
         binding.btnDoLogin.setOnClickListener {
             performLogin()
         }
 
-        binding.tvNavRegister.setOnClickListener {
+        binding.root.findViewById<View>(com.example.sixcoachconfectionery.R.id.tvNavRegister)?.setOnClickListener {
             (activity as? MainActivity)?.navigateToRegister()
         }
     }
 
     private fun setupFields() {
-        binding.inputLoginUsername.setLabel("Username *")
-        binding.inputLoginUsername.setHint("Enter your username or email")
+        binding.inputLoginUsername.setLabel("Email *")
+        binding.inputLoginUsername.setHint("e.g. admin@email.com or staff email")
 
         binding.inputLoginPassword.setLabel("Password *")
         binding.inputLoginPassword.setHint("Enter your password")
@@ -54,12 +64,12 @@ class LoginFragment : Fragment() {
     private fun performLogin() {
         binding.tvLoginError.visibility = View.GONE
 
-        val username = binding.inputLoginUsername.getText()
+        val email = binding.inputLoginUsername.getText().trim()
         val password = binding.inputLoginPassword.getText()
 
         var hasError = false
-        if (username.isEmpty()) {
-            binding.inputLoginUsername.setError("Username is required")
+        if (email.isEmpty()) {
+            binding.inputLoginUsername.setError("Email is required")
             hasError = true
         }
         if (password.isEmpty()) {
@@ -69,13 +79,26 @@ class LoginFragment : Fragment() {
 
         if (hasError) return
 
-        val result = repository.loginUser(username, password)
-        if (result.first) {
-            Toast.makeText(requireContext(), "Welcome back, $username!", Toast.LENGTH_SHORT).show()
-            (activity as? MainActivity)?.navigateToSales()
-        } else {
-            binding.tvLoginError.text = result.second
-            binding.tvLoginError.visibility = View.VISIBLE
+        binding.btnDoLogin.isEnabled = false
+
+        CoroutineScope(Dispatchers.IO).launch {
+            val result = authRepository.loginUser(email, password)
+            withContext(Dispatchers.Main) {
+                binding.btnDoLogin.isEnabled = true
+                if (result.isSuccess) {
+                    val userProfile = result.getOrNull()
+                    Toast.makeText(requireContext(), "Welcome back, ${userProfile?.username ?: email}!", Toast.LENGTH_SHORT).show()
+                    if (userProfile != null) {
+                        (activity as? MainActivity)?.onUserLoggedIn(userProfile)
+                    } else {
+                        (activity as? MainActivity)?.navigateToSales()
+                    }
+                } else {
+                    val errorMsg = result.exceptionOrNull()?.localizedMessage ?: "Login failed. Check credentials."
+                    binding.tvLoginError.text = errorMsg
+                    binding.tvLoginError.visibility = View.VISIBLE
+                }
+            }
         }
     }
 
