@@ -49,13 +49,32 @@ class RegisterFragment : Fragment() {
         binding.inputRegUsername.setLabel("Email / Username *")
         binding.inputRegUsername.setHint("e.g. staff@whiskit.com")
 
-        binding.inputRegPassword.setLabel("Password (min 6 characters) *")
-        binding.inputRegPassword.setHint("Enter password")
+        binding.inputRegPassword.setLabel("Password (min 8 chars, Upper, Lower, Number, Special) *")
+        binding.inputRegPassword.setHint("Enter strong password")
         binding.inputRegPassword.setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
 
         binding.inputRegConfirmPassword.setLabel("Confirm password *")
         binding.inputRegConfirmPassword.setHint("Re-enter password")
         binding.inputRegConfirmPassword.setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+    }
+
+    private fun isPasswordStrong(password: String): Pair<Boolean, String> {
+        if (password.length < 8) {
+            return Pair(false, "Password must be at least 8 characters long.")
+        }
+        if (!password.any { it.isUpperCase() }) {
+            return Pair(false, "Password must contain at least one uppercase letter.")
+        }
+        if (!password.any { it.isLowerCase() }) {
+            return Pair(false, "Password must contain at least one lowercase letter.")
+        }
+        if (!password.any { it.isDigit() }) {
+            return Pair(false, "Password must contain at least one number.")
+        }
+        if (!password.any { !it.isLetterOrDigit() }) {
+            return Pair(false, "Password must contain at least one special character (e.g. !@#\$%^&*).")
+        }
+        return Pair(true, "")
     }
 
     private fun performRegistration() {
@@ -73,8 +92,11 @@ class RegisterFragment : Fragment() {
             hasError = true
         }
 
-        if (password.length < 6) {
-            binding.inputRegPassword.setError("Password must be at least 6 characters")
+        val passwordCheck = isPasswordStrong(password)
+        if (!passwordCheck.first) {
+            binding.inputRegPassword.setError(passwordCheck.second)
+            binding.tvRegisterError.text = passwordCheck.second
+            binding.tvRegisterError.visibility = View.VISIBLE
             hasError = true
         }
 
