@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.lifecycleScope
 import com.example.sixcoachconfectionery.R
+import com.example.sixcoachconfectionery.data.model.UserProfile
 import com.example.sixcoachconfectionery.data.repository.AuthRepository
 import com.example.sixcoachconfectionery.databinding.DialogStaffEditorBinding
 import kotlinx.coroutines.Dispatchers
@@ -15,6 +16,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class StaffEditorDialogFragment(
+    private val existingUser: UserProfile? = null,
     private val onStaffSaved: () -> Unit
 ) : DialogFragment() {
 
@@ -37,6 +39,20 @@ class StaffEditorDialogFragment(
 
         setupFields()
 
+        if (existingUser != null) {
+            binding.tvStaffEditorTitle.text = "Edit Staff Role"
+            binding.inputStaffEmail.setText(existingUser.email.ifEmpty { existingUser.username })
+            binding.inputStaffEmail.isEnabled = false // Email cannot be changed here
+
+            when (existingUser.role) {
+                "Admin" -> binding.rgStaffRole.check(R.id.rbStaffAdmin)
+                "Kitchen Staff" -> binding.rgStaffRole.check(R.id.rbStaffKitchen)
+                else -> binding.rgStaffRole.check(R.id.rbStaffCounter)
+            }
+        } else {
+            binding.tvStaffEditorTitle.text = "Add New Staff"
+        }
+
         binding.btnCancelStaff.setOnClickListener {
             dismiss()
         }
@@ -50,12 +66,13 @@ class StaffEditorDialogFragment(
         binding.inputStaffEmail.setLabel("Staff Email *")
         binding.inputStaffEmail.setHint("e.g. staff@whiskit.com")
 
-        binding.inputStaffPassword.setLabel("Password (min 8 chars, Upper, Lower, Number, Special) *")
-        binding.inputStaffPassword.setHint("Enter strong password")
+        binding.inputStaffPassword.setLabel("Password (min 8 chars, Upper, Lower, Number, Special)")
+        binding.inputStaffPassword.setHint("Enter strong password (optional for edit)")
         binding.inputStaffPassword.setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
     }
 
     private fun isPasswordStrong(password: String): Pair<Boolean, String> {
+        if (password.isEmpty()) return Pair(true, "")
         if (password.length < 8) {
             return Pair(false, "Password must be at least 8 characters long.")
         }
@@ -84,6 +101,7 @@ class StaffEditorDialogFragment(
             R.id.rbStaffKitchen -> "Kitchen Staff"
             else -> "Counter Staff"
         }
+        val isAdmin = (role == "Admin")
 
         var hasError = false
 
@@ -105,11 +123,14 @@ class StaffEditorDialogFragment(
         binding.btnSaveStaff.isEnabled = false
 
         lifecycleScope.launch(Dispatchers.IO) {
-            val isAdmin = (role == "Admin")
-            val result = if (isAdmin) {
-                authRepository.seedAdminAccount(email, password)
+            val result = if (existingUser != null) {
+                authRepository.updateUserRole(existingUser.uid, role, isAdmin)
             } else {
-                authRepository.registerStaff(email, password, email.substringBefore("@"), role)
+                if (isAdmin) {
+                    authRepository.seedAdminAccount(email, password.ifEmpty { "admin@123" })
+                } else {
+                    authRepository.registerStaff(email, password, email.substringBefore("@"), role)
+                }
             }
 
             withContext(Dispatchers.Main) {
