@@ -1,64 +1,112 @@
 # SixCoachConfectionery Android POS & KDS Mobile App
 
-SixCoachConfectionery is a mobile-first bakery **Point of Sale (POS)**, **Kitchen Display System (KDS)**, and **Admin Management** Android application. Built using modern Android architecture components with Kotlin, Material Design 3, ViewBinding, and persistent local JSON storage (`six_coach_confectionery_store.json`).
+SixCoachConfectionery is a bakery Point-of-Sale (POS), Kitchen Display System (KDS), and admin-management Android app for staff ordering, kitchen workflows, and inventory control.
+
+It uses Kotlin, Android Jetpack, Firebase Authentication, Firestore, and Google Sign-In for secure staff access and order processing.
 
 ---
 
-## App Screens & Navigation
+## Features
 
-Navigation is seamlessly accessible via the **Bottom Navigation Bar** and **Top App Header**:
-
-| Navigation Tab | Who | Purpose & Mobile UI Features |
-|----------------|-----|------------------------------|
-| **Sales** | Cashiers / Staff | **POS Terminal** — Horizontal category filter pills (`All`, `Bread`, `Coffee`, etc.), Product grid with stock badges and prices in Rand (`R 5.00`), Cart summary with item quantity steppers (`-` / `+`), Total calculation, and **Pay** button triggering custom checkout dialog. |
-| **Kitchen** | Kitchen Staff | **KDS Display** — Live pending orders view, timer counter showing elapsed time per order (e.g., `0m 7s`), order items list, "Refresh now" / Swipe-to-refresh, and green **Complete** button to clear fulfilled orders. |
-| **Admin** | Admin | **Bakery Management Panel** with sub-tabs: <br>• **Overview**: Feature navigation cards (`Manage Items`, `View Analytics`, `Configure System`), Quick Stats (Total Orders, Total Revenue `R29.00`, Items Sold, Avg Order `R14.50`), and Recent Orders. <br>• **Inventory Control**: Add/edit/deactivate bakery items with custom input controls and stock level tracking. <br>• **Sales Analytics**: Filterable sales reports (`This Week`, `Today`, `This Month`, `All Time`), Revenue cards, `#1 BEST` top-selling products, recent orders table, and Export Report. <br>• **User Management**: List registered users and grant/revoke admin privileges. |
-| **Account** | Public / Staff | **Authentication & Profile** — Staff login and account registration screens with custom input controls and validation. |
-
----
-
-## Technical Stack & Architecture
-
-- **Language:** Kotlin
-- **UI Architecture:** Material Components (Material 3), ConstraintLayout, ViewBinding, Dynamic Custom Input Controls (`CustomInputField`), Custom Dialogs (`CheckoutDialogFragment`, `ItemEditorDialogFragment`).
-- **Data & Persistence:** `SixCoachConfectioneryRepository` with local persistent JSON file storage (`six_coach_confectionery_store.json` in `context.filesDir`). All inventory changes, user registrations, and order checkout records survive app restarts.
-- **Theme & Design:** Warm bakery theme palette (`bakery_brown`, `bakery_tan`, `bakery_bg`, `bakery_green`, `bakery_gold`).
-- **Build System:** Gradle (AGP 9.2.0, Kotlin JVM 11).
+- Staff login and registration
+- Admin dashboard for user management and role assignment
+- Sales workflow with add-to-cart, quantity adjustments, and checkout
+- Cash and card payment flow
+- Kitchen order queue and completion tracking
+- Inventory stock reduction on successful order placement
+- Firestore-backed user and order persistence
+- Google Sign-In support using the configured Web Client ID
 
 ---
 
-## Building and Running the App
+## Tech Stack
 
-### Prerequisites
-- Android Studio Ladybug / Jellyfish or newer
-- Android SDK 35 (or compileSdk 37 / Android 14+)
-- JDK 11 or JDK 17
+- Android: Kotlin, ViewBinding, Material Components
+- Firebase: Firebase Auth, Firestore
+- Google Identity: Google Sign-In / Google One Tap
+- Build: Gradle + Android Gradle Plugin
 
-### Build Commands
+---
+
+## Firebase & Google Setup
+
+Before running the app, configure the Firebase project and Google credentials:
+
+1. Add your Android app to Firebase.
+2. Download `google-services.json` and place it in `app/`.
+3. In Google Cloud Console, create or configure the OAuth Web Client ID.
+4. Use the Web Client ID in the app's Google Sign-In request:
+
+  337377997144-bjd8tsh7vksnuk7sd04hinojrekrn0eu.apps.googleusercontent.com
+
+5. Ensure the Firebase Auth user and Firestore security rules allow the required flows for sign-in, order creation, and admin operations.
+
+---
+
+## Default Admin Account
+
+The app seeds a default admin account during startup:
+
+- Email: `admin@email.com`
+- Password: `admin@123`
+
+This account is used for admin access and user-management operations.
+
+---
+
+## Firestore Security Notes
+
+The app relies on authenticated Firestore access for:
+
+- user profile reads and admin deletion
+- order creation
+- stock deduction during checkout
+- inventory transaction logging
+- kitchen order updates
+
+Important rule requirements include:
+
+- authenticated users only
+- `customerId == request.auth.uid` for order creation
+- numeric `totalAmount` and `orderDate`
+- admin-only user deletion
+- authenticated stock updates for valid sale flows
+
+---
+
+## Build & Run
+
 From the project root:
 
 ```bash
-# Build Debug APK
 ./gradlew app:assembleDebug
-
-# Run Local Unit Tests
 ./gradlew testDebugUnitTest
 ```
 
 ---
 
-## First-Time Usage & Default Seed Data
+## Usage Flow
 
-On first launch, SixCoachConfectionery automatically seeds initial data into persistent local storage:
+1. Launch the app.
+2. Log in with an existing account or register a staff user.
+3. Use the Sales screen to add items to the cart.
+4. Tap Pay to complete checkout.
+5. The transaction writes the order, inventory records, and kitchen order data.
+6. Admin users can manage staff users from the admin panel.
 
-1. **Default Admin Account:**
-   - **Username:** `ST10385107@rcconnect.edu.za`
-   - **Password:** `password123`
-2. **Default Bakery Menu Items:**
-   - `gwinya` (Category: `Bread`, Price: `R 5.00`, Initial Stock: `14`)
-   - `latte` (Category: `Coffee`, Price: `R 24.00`, Initial Stock: `11`)
-3. **Checkout Flow:**
-   - Tap products on the **Sales** tab to add to cart.
-   - Tap **Pay** to open the checkout dialog. Choose Cash or Card.
-   - For cash payments, enter amount tendered or use quick cash buttons (`Exact`, `+R10`, `+R20`, `+R50`, `+R100`) to view real-time change due.
-   - Completing payment creates a pending order sent to the **Kitchen Display System (KDS)** and deducts stock from inventory automatically.
+---
+
+## Troubleshooting
+
+Common issues:
+
+- Firestore `PERMISSION_DENIED`: check auth state and Firestore rule conditions.
+- Google Sign-In issues: verify the Web Client ID matches the Google Cloud OAuth client.
+- Admin delete fails: ensure the signed-in user is an actual admin profile in Firestore.
+- Missing credentials: confirm `requestIdToken` / Google ID token generation is configured correctly.
+
+---
+
+## Notes
+
+This project is intended for bakery POS workflows and is structured around a Firebase + Android mobile stack. It supports both staff operations and admin management in a single Android app.
