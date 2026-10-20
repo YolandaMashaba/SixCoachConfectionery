@@ -1,138 +1,112 @@
-# Full-Stack Bakery POS & Kitchen Management System
+# SixCoachConfectionery Android POS & KDS Mobile App
 
-A comprehensive, full-stack Android application built in Android Studio designed for modern bakery operations. This solution bridges front-of-house operations, back-of-house kitchen workflows, and back-office administrative management into a unified system featuring a Sales Floor POS, Kitchen Display System (KDS), and Admin Dashboard.
+SixCoachConfectionery is a bakery Point-of-Sale (POS), Kitchen Display System (KDS), and admin-management Android app for staff ordering, kitchen workflows, and inventory control.
 
----
-
-## Key Features & Modules
-
-### 1. Sales Floor (Point of Sale)
-- **Interactive POS Interface:** Fast category and product selection optimized for touchscreen interaction.
-- **Order Customization:** Support for item modifiers (e.g., custom cake messages, sugar levels, milk alternatives, dietary tags).
-- **Cart & Checkout Management:** Quick item adding/removing, split billing, percentage/flat discounts, and tax calculations.
-- **Payment Processing:** Accepts multiple payment methods (Cash, Card, Mobile Wallet/QR).
-- **Receipt Generation:** Integrated digital receipt sending (Email/SMS) and Bluetooth/Network thermal printer printing.
-
-### 2. Kitchen Display System (KDS)
-- **Real-Time Order Sync:** Instant routing of new orders from the POS to kitchen displays via WebSocket/Firebase listener.
-- **Status Workflow Management:** Interactive ticket cards transitioning across states: `New` ➔ `In Preparation` ➔ `Ready for Pickup` ➔ `Completed`.
-- **Item-Level Progress:** Bakeshop staff can cross off individual items on multi-item custom cake or pastry orders.
-- **Time Tracking & Alerts:** Visual color-coded timers alerting bakers to urgent or overdue custom orders.
-
-### 3. Admin Panel & Management
-- **Inventory & Recipe Management:** Real-time ingredient tracking, stock deduction per sale, low-stock threshold alerts, and batch management.
-- **Product & Menu Management:** Add, edit, or archive products, manage categories, set dynamic pricing, and control item availability.
-- **Reporting & Analytics:**
-  - Daily, weekly, and monthly sales breakdowns.
-  - Best-selling baked goods & category performance.
-  - Peak sales hours & KDS order preparation time metrics.
-- **User Role & Staff Management:** Role-Based Access Control (RBAC) separating `Cashier`, `Baker/Kitchen Staff`, and `Admin` permissions.
+It uses Kotlin, Android Jetpack, Firebase Authentication, Firestore, and Google Sign-In for secure staff access and order processing.
 
 ---
 
-## Architecture & Tech Stack
+## Features
 
-- **Platform:** Android (Java / Kotlin)
-- **IDE:** Android Studio (Jellyfish / Koala or newer)
-- **UI Framework:** Android XML Layouts / Jetpack Compose with Material Design 3
-- **Architecture Pattern:** MVVM (Model-View-ViewModel) with Clean Architecture principles
-- **Asynchronous Processing:** Kotlin Coroutines & Flow / RxJava
-- **Database & Persistence:**
-  - **Local Storage:** Room Database (Offline-first caching and local POS transactions)
-  - **Cloud / Backend:** Firebase Cloud Firestore or RESTful API (Node.js/Spring Boot/Laravel)
-- **Real-Time Communication:** Firebase Realtime Database / WebSockets (STOMP) for KDS updates
-- **Dependency Injection:** Hilt / Dagger
-- **Networking:** Retrofit2 & OkHttp3 / Firebase SDK
+- Staff login and registration
+- Admin dashboard for user management and role assignment
+- Sales workflow with add-to-cart, quantity adjustments, and checkout
+- Cash and card payment flow
+- Kitchen order queue and completion tracking
+- Inventory stock reduction on successful order placement
+- Firestore-backed user and order persistence
+- Google Sign-In support using the configured Web Client ID
 
 ---
 
-## Project Structure
+## Tech Stack
 
-```text
-BakeryPOS/
-├── app/
-│   ├── src/
-│   │   ├── main/
-│   │   │   ├── java/com/bakery/pos/
-│   │   │   │   ├── data/
-│   │   │   │   │   ├── local/          # Room DB entities, DAOs, Database
-│   │   │   │   │   ├── remote/         # API services, Firebase, DTOs
-│   │   │   │   │   └── repository/     # Data repository implementations
-│   │   │   │   ├── di/                 # Dependency injection modules (Hilt)
-│   │   │   │   ├── domain/             # Use cases, business logic, domain models
-│   │   │   │   ├── ui/
-│   │   │   │   │   ├── sales/          # POS Register UI & ViewModels
-│   │   │   │   │   ├── kds/            # Kitchen Display System UI & ViewModels
-│   │   │   │   │   ├── admin/          # Inventory, Products & Analytics UI
-│   │   │   │   │   ├── auth/           # Login & Staff Role selection
-│   │   │   │   │   └── common/         # Shared adapters, dialogs, and components
-│   │   │   │   └── utils/              # Thermal printer SDKs, formatters, helpers
-│   │   │   ├── res/                    # Layouts, drawables, values, navigation
-│   │   │   └── AndroidManifest.xml
-│   └── build.gradle.kts
-├── build.gradle.kts
-└── settings.gradle.kts
+- Android: Kotlin, ViewBinding, Material Components
+- Firebase: Firebase Auth, Firestore
+- Google Identity: Google Sign-In / Google One Tap
+- Build: Gradle + Android Gradle Plugin
+
+---
+
+## Firebase & Google Setup
+
+Before running the app, configure the Firebase project and Google credentials:
+
+1. Add your Android app to Firebase.
+2. Download `google-services.json` and place it in `app/`.
+3. In Google Cloud Console, create or configure the OAuth Web Client ID.
+4. Use the Web Client ID in the app's Google Sign-In request:
+
+  337377997144-bjd8tsh7vksnuk7sd04hinojrekrn0eu.apps.googleusercontent.com
+
+5. Ensure the Firebase Auth user and Firestore security rules allow the required flows for sign-in, order creation, and admin operations.
+
+---
+
+## Default Admin Account
+
+The app seeds a default admin account during startup:
+
+- Email: `admin@email.com`
+- Password: `admin@123`
+
+This account is used for admin access and user-management operations.
+
+---
+
+## Firestore Security Notes
+
+The app relies on authenticated Firestore access for:
+
+- user profile reads and admin deletion
+- order creation
+- stock deduction during checkout
+- inventory transaction logging
+- kitchen order updates
+
+Important rule requirements include:
+
+- authenticated users only
+- `customerId == request.auth.uid` for order creation
+- numeric `totalAmount` and `orderDate`
+- admin-only user deletion
+- authenticated stock updates for valid sale flows
+
+---
+
+## Build & Run
+
+From the project root:
+
+```bash
+./gradlew app:assembleDebug
+./gradlew testDebugUnitTest
 ```
 
 ---
 
-## Getting Started
+## Usage Flow
 
-### Prerequisites
-
-- **Android Studio:** Electric Eel (2025.1.1) or newer recommended.
-- **JDK:** Java Development Kit 17 or higher.
-- **Android Device / Emulator:** API Level 24 (Android 7.0) or higher.
-- **Backend Setup:** A active Firebase Project or configured REST API backend.
-
----
-
-### Installation & Setup
-
-1. **Clone the Repository:**
-   ```bash
-   git clone https://github.com/your-username/BakeryPOS-Android.git
-   cd BakeryPOS-Android
-   ```
-
-2. **Open in Android Studio:**
-   - Launch Android Studio.
-   - Select **Open** and navigate to the cloned project folder.
-
-3. **Configure Backend Services:**
-   - **For Firebase Backend:**
-     1. Create a project in the [Firebase Console](https://console.firebase.google.com/).
-     2. Add an Android app with package name `com.bakery.pos`.
-     3. Download `google-services.json` and place it in the `app/` directory.
-   - **For REST API Backend:**
-     1. Open `app/src/main/java/com/bakery/pos/utils/Constants.kt` (or `gradle.properties`).
-     2. Update `BASE_URL` with your local IP or hosted backend URL (e.g., `http://192.168.1.100:8080/api/`).
-
-4. **Sync Project & Build:**
-   - Click **File > Sync Project with Gradle Files**.
-   - Build the APK or run the app directly on an emulator or physical device.
+1. Launch the app.
+2. Log in with an existing account or register a staff user.
+3. Use the Sales screen to add items to the cart.
+4. Tap Pay to complete checkout.
+5. The transaction writes the order, inventory records, and kitchen order data.
+6. Admin users can manage staff users from the admin panel.
 
 ---
 
-## Available User Roles
+## Troubleshooting
 
-| Role | Access Level | Primary Functions |
-| :--- | :--- | :--- |
-| **Cashier / Sales** | POS Floor | Take orders, process payments, print receipts, view daily drawer totals. |
-| **Baker / Kitchen** | KDS Display | View incoming tickets, update preparation status, view order modifiers. |
-| **Administrator** | Full Access | Manage inventory stock, modify products & prices, view sales analytics, manage staff accounts. |
+Common issues:
 
-
-## Contributing
-
-1. Fork the Repository.
-2. Create a Feature Branch (`git checkout -b feature/KitchenTimerAlerts`).
-3. Commit your Changes (`git commit -m 'Add custom timer for KDS tickets'`).
-4. Push to the Branch (`git push origin feature/KitchenTimerAlerts`).
-5. Open a Pull Request.
+- Firestore `PERMISSION_DENIED`: check auth state and Firestore rule conditions.
+- Google Sign-In issues: verify the Web Client ID matches the Google Cloud OAuth client.
+- Admin delete fails: ensure the signed-in user is an actual admin profile in Firestore.
+- Missing credentials: confirm `requestIdToken` / Google ID token generation is configured correctly.
 
 ---
 
-## License
+## Notes
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is intended for bakery POS workflows and is structured around a Firebase + Android mobile stack. It supports both staff operations and admin management in a single Android app.
