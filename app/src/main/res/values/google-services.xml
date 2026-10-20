@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="google_app_id" translatable="false">1:337377997144:android:14afc5ea499ae3c6ef752d</string>
+    <string name="gcm_defaultSenderId" translatable="false">337377997144</string>
+    <string name="project_id" translatable="false">sixcoachconfectionery-e9a5a</string>
+    <string name="google_api_key" translatable="false">AIzaSyCgKV1cizRPKZ9YyrWnlKXS4Ufz2bxeSt4</string>
+    <string name="google_storage_bucket" translatable="false">sixcoachconfectionery-e9a5a.firebasestorage.app</string>
+</resources>

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingBottom="12dp">
+
+    <TextView
+        android:id="@+id/tvInputLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="6dp"
+        android:textColor="@color/bakery_text_primary"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:text="Label" />
+
+    <EditText
+        android:id="@+id/etInputField"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="@drawable/bg_custom_input"
+        android:paddingHorizontal="14dp"
+        android:textColor="@color/bakery_text_primary"
+        android:textColorHint="@color/bakery_text_muted"
+        android:textSize="15sp"
+        android:maxLines="1"
+        android:inputType="text" />
+
+    <TextView
+        android:id="@+id/tvInputError"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:textColor="@color/bakery_red"
+        android:textSize="12sp"
+        android:visibility="gone"
+        android:text="Error message" />
+
+</LinearLayout>

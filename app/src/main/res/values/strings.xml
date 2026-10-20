@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">SixCoachConfectionery</string>
+    <string name="nav_sales">Sales</string>
+    <string name="nav_kitchen">Kitchen</string>
+    <string name="nav_admin">Admin</string>
+    <string name="nav_account">Account</string>
 </resources>
