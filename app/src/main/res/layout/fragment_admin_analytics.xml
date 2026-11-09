@@ -324,7 +324,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="📦 Top Selling Items"
+                android:text="Top Selling Items"
                 android:textColor="@color/bakery_text_primary"
                 android:textSize="16sp"
                 android:textStyle="bold" />
@@ -340,7 +340,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:text="🛒 Recent Orders"
+                android:text="Recent Orders"
                 android:textColor="@color/bakery_text_primary"
                 android:textSize="16sp"
                 android:textStyle="bold" />
