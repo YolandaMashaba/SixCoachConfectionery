@@ -381,7 +381,7 @@ class SixCoachConfectioneryRepository private constructor(private val context: C
     fun deleteItem(itemId: String) {
         val index = items.indexOfFirst { it.id == itemId }
         if (index != -1) {
-            items[index] = items[index].copy(isActive = false)
+            items.removeAt(index)
             notifyDataChanged()
 
             scope.launch {
