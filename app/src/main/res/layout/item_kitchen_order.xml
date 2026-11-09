@@ -6,9 +6,9 @@
     android:layout_margin="8dp"
     app:cardCornerRadius="12dp"
     app:cardElevation="2dp"
-    app:strokeColor="@color/bakery_green_border"
+    app:strokeColor="@color/bakery_card_border"
     app:strokeWidth="1.5dp"
-    app:cardBackgroundColor="#F0FDF4">
+    app:cardBackgroundColor="@color/white">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -74,7 +74,7 @@
                 android:textColor="@color/white"
                 android:textSize="14sp"
                 android:textStyle="bold"
-                android:backgroundTint="@color/bakery_green"
+                android:backgroundTint="@color/bakery_brown"
                 app:cornerRadius="8dp" />
 
         </LinearLayout>
