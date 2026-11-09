@@ -1,9 +1,10 @@
 package com.example.sixcoachconfectionery.ui.adapters
 
-import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
+import com.example.sixcoachconfectionery.R
 import com.example.sixcoachconfectionery.data.model.UserProfile
 import com.example.sixcoachconfectionery.databinding.ItemUserRowBinding
 
@@ -29,8 +30,7 @@ class UserAdapter(
             tvUserUsername.text = user.email.ifEmpty { user.username }
             val roleText = user.role.ifEmpty { if (user.isAdmin) "Admin" else "Counter Staff" }
             tvUserRoleBadge.text = roleText
-            val isAdmin = user.isAdmin || roleText == "Admin"
-            tvUserRoleBadge.setTextColor(if (isAdmin) Color.parseColor("#2E7D32") else Color.parseColor("#1976D2"))
+            tvUserRoleBadge.setTextColor(ContextCompat.getColor(root.context, R.color.bakery_text_primary))
 
             btnEditUser.setOnClickListener { onEditUser(user) }
             btnDeleteUser.setOnClickListener { onDeleteUser(user) }
