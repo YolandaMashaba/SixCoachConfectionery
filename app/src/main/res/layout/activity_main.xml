@@ -9,7 +9,7 @@
     android:background="@color/bakery_bg"
     tools:context=".MainActivity">
 
-    <!-- Top App Bar / Header -->
+    <!-- Top App Bar / Navbar (Darker color with white writing) -->
     <LinearLayout
         android:id="@+id/topBar"
         android:layout_width="match_parent"
@@ -17,7 +17,7 @@
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingHorizontal="16dp"
-        android:background="@color/white"
+        android:background="@color/bakery_brown"
         android:elevation="2dp">
 
         <TextView
@@ -26,7 +26,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="SixCoachConfectionery"
-            android:textColor="@color/bakery_text_primary"
+            android:textColor="@color/white"
             android:textSize="20sp"
             android:textStyle="bold" />
 
@@ -42,7 +42,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="User"
-                android:textColor="@color/bakery_text_secondary"
+                android:textColor="@color/white"
                 android:textSize="12sp"
                 android:ellipsize="end"
                 android:maxLines="1"
@@ -55,7 +55,7 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Logout"
                 android:src="@drawable/ic_logout"
-                app:tint="@color/bakery_brown" />
+                app:tint="@color/white" />
 
         </LinearLayout>
 
@@ -65,8 +65,8 @@
             android:layout_height="36dp"
             android:text="Login / Register"
             android:textSize="12sp"
-            android:textColor="@color/white"
-            android:backgroundTint="@color/bakery_brown"
+            android:textColor="@color/bakery_brown"
+            android:backgroundTint="@color/white"
             android:visibility="gone"
             android:paddingHorizontal="12dp" />
 
