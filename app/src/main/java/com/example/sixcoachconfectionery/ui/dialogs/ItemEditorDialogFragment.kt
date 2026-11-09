@@ -54,6 +54,14 @@ class ItemEditorDialogFragment(
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        dialog?.window?.setLayout(
+            (resources.displayMetrics.widthPixels * 0.9).toInt(),
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+    }
+
     private fun setupFields() {
         binding.inputItemName.setLabel("Item Name *")
         binding.inputItemName.setHint("e.g. gwinya, latte")
