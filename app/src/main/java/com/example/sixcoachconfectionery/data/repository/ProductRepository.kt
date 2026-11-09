@@ -45,6 +45,21 @@ class ProductRepository(
         }
     }
 
+    fun observeProducts(
+        onProducts: (List<Product>) -> Unit,
+        onError: (Exception) -> Unit
+    ): com.google.firebase.firestore.ListenerRegistration {
+        return productsCollection.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                onError(error)
+                return@addSnapshotListener
+            }
+            if (snapshot != null) {
+                onProducts(snapshot.toObjects(Product::class.java))
+            }
+        }
+    }
+
     suspend fun getProductById(productId: String): Result<Product?> {
         return try {
             val doc = productsCollection.document(productId).get().await()
