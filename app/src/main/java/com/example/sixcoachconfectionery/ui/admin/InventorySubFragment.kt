@@ -64,7 +64,7 @@ class InventorySubFragment : Fragment() {
             },
             onDeleteItem = { item ->
                 repository.deleteItem(item.id)
-                Toast.makeText(requireContext(), "'${item.name}' deactivated.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), "'${item.name}' deleted successfully.", Toast.LENGTH_SHORT).show()
                 refreshInventory()
             }
         )
