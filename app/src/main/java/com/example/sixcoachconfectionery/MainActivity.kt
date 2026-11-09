@@ -19,6 +19,12 @@ import com.example.sixcoachconfectionery.ui.auth.LoginFragment
 import com.example.sixcoachconfectionery.ui.auth.RegisterFragment
 import com.example.sixcoachconfectionery.ui.kitchen.KitchenFragment
 import com.example.sixcoachconfectionery.ui.sales.SalesFragment
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
     private lateinit var auth: FirebaseAuth
@@ -48,7 +54,7 @@ class MainActivity : AppCompatActivity() {
             val settings = com.google.firebase.firestore.FirebaseFirestoreSettings.Builder()
                 .setPersistenceEnabled(true)
                 .build()
-            com.google.firebase.firestore.FirebaseFirestore.getInstance().firestoreSettings = settings
+            FirebaseFirestore.getInstance().firestoreSettings = settings
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -57,10 +63,36 @@ class MainActivity : AppCompatActivity() {
 
         setupHeader()
 
-        // Force fresh start on Login page every time the app runs
-        auth.signOut()
-        repository.logout()
-        navigateToLogin()
+        // Persistent Login State Check: Remember logged in session
+        val currentUser = auth.currentUser
+        if (currentUser != null) {
+            checkUserRoleAndRoute(currentUser.uid)
+        } else {
+            navigateToLogin()
+        }
+    }
+
+    private fun checkUserRoleAndRoute(uid: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val doc = FirebaseFirestore.getInstance()
+                    .collection("users").document(uid).get().await()
+                val profile = doc.toObject(UserProfile::class.java)
+                withContext(Dispatchers.Main) {
+                    updateHeaderUserStatus()
+                    when {
+                        profile?.isAdmin == true || profile?.role == "Admin" -> navigateToAdmin()
+                        profile?.role == "Kitchen Staff" -> navigateToKitchen()
+                        else -> navigateToSales()
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    updateHeaderUserStatus()
+                    navigateToSales()
+                }
+            }
+        }
     }
 
     fun onUserLoggedIn(profile: UserProfile) {
