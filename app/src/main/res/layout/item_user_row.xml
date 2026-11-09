@@ -19,7 +19,7 @@
         android:ellipsize="end"
         android:maxLines="1" />
 
-    <!-- Role Badge -->
+    <!-- Role Badge (Flat Pill Style) -->
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
@@ -31,12 +31,12 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Admin"
-            android:textColor="#2E7D32"
+            android:textColor="@color/bakery_text_primary"
             android:textSize="12sp"
             android:textStyle="bold"
-            android:paddingHorizontal="8dp"
-            android:paddingVertical="4dp"
-            android:background="@drawable/bg_button_green" />
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="5dp"
+            android:background="@drawable/bg_role_badge" />
 
     </LinearLayout>
 
