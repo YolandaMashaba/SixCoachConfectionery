@@ -20,6 +20,7 @@ import com.example.sixcoachconfectionery.databinding.FragmentSalesBinding
 import com.example.sixcoachconfectionery.ui.adapters.CartAdapter
 import com.example.sixcoachconfectionery.ui.adapters.ProductAdapter
 import com.example.sixcoachconfectionery.ui.dialogs.CheckoutDialogFragment
+import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -37,6 +38,7 @@ class SalesFragment : Fragment() {
     private val cartItems = mutableListOf<CartItem>()
     private var allProductsList = listOf<Item>()
     private var categoriesList = listOf("All")
+    private var productListener: ListenerRegistration? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -51,7 +53,30 @@ class SalesFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         setupAdapters()
-        loadFirestoreProducts()
+
+        productListener = productRepository.observeProducts({ products ->
+            allProductsList = products.map { p ->
+                Item(
+                    id = p.productId,
+                    name = p.productName,
+                    category = p.categoryId,
+                    price = p.price,
+                    stock = p.quantityInStock,
+                    isActive = p.availability == "In Stock"
+                )
+            }
+            lifecycleScope.launch(Dispatchers.IO) {
+                val catResult = productRepository.getCategories()
+                withContext(Dispatchers.Main) {
+                    if (catResult.isSuccess) {
+                        val catNames = catResult.getOrNull()?.map { it.categoryName } ?: emptyList()
+                        categoriesList = listOf("All") + catNames.distinct()
+                    }
+                    setupCategoryChips()
+                    refreshProducts()
+                }
+            }
+        }, { _ -> })
 
         binding.btnClearCart.setOnClickListener {
             cartItems.clear()
@@ -67,7 +92,6 @@ class SalesFragment : Fragment() {
             val checkoutDialog = CheckoutDialogFragment(cartItems) {
                 cartItems.clear()
                 updateCartUI()
-                loadFirestoreProducts()
                 Toast.makeText(requireContext(), "Payment Complete! Order sent to Kitchen & Dashboard.", Toast.LENGTH_LONG).show()
             }
             checkoutDialog.show(parentFragmentManager, "CheckoutDialog")
@@ -102,38 +126,6 @@ class SalesFragment : Fragment() {
         )
         binding.rvCartItems.layoutManager = LinearLayoutManager(requireContext())
         binding.rvCartItems.adapter = cartAdapter
-    }
-
-    private fun loadFirestoreProducts() {
-        lifecycleScope.launch(Dispatchers.IO) {
-            val productsResult = productRepository.getProducts()
-            val categoriesResult = productRepository.getCategories()
-
-            withContext(Dispatchers.Main) {
-                if (productsResult.isSuccess) {
-                    val firestoreProducts = productsResult.getOrNull() ?: emptyList()
-                    allProductsList = firestoreProducts.map { p ->
-                        Item(
-                            id = p.productId,
-                            name = p.productName,
-                            category = p.categoryId,
-                            price = p.price,
-                            stock = p.quantityInStock,
-                            isActive = p.availability == "In Stock"
-                        )
-                    }
-                }
-
-                if (categoriesResult.isSuccess) {
-                    val firestoreCategories = categoriesResult.getOrNull() ?: emptyList()
-                    val catNames = firestoreCategories.map { it.categoryName }
-                    categoriesList = listOf("All") + catNames.distinct()
-                }
-
-                setupCategoryChips()
-                refreshProducts()
-            }
-        }
     }
 
     private fun setupCategoryChips() {
@@ -223,6 +215,7 @@ class SalesFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        productListener?.remove()
         _binding = null
     }
 }
