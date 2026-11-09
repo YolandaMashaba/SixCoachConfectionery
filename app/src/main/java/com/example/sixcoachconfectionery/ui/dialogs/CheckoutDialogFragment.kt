@@ -53,6 +53,14 @@ class CheckoutDialogFragment(
         setupListeners()
     }
 
+    override fun onStart() {
+        super.onStart()
+        dialog?.window?.setLayout(
+            (resources.displayMetrics.widthPixels * 0.9).toInt(),
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+    }
+
     private fun setupListeners() {
         binding.rgPaymentMethod.setOnCheckedChangeListener { _, checkedId ->
             if (checkedId == binding.rbCard.id) {
