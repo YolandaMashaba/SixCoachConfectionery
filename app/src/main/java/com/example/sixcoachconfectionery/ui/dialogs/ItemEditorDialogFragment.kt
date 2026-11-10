@@ -6,9 +6,14 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.DialogFragment
+import androidx.lifecycle.lifecycleScope
 import com.example.sixcoachconfectionery.data.SixCoachConfectioneryRepository
 import com.example.sixcoachconfectionery.data.models.Item
+import com.example.sixcoachconfectionery.data.repository.ProductRepository
 import com.example.sixcoachconfectionery.databinding.DialogItemEditorBinding
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ItemEditorDialogFragment(
     private val existingItem: Item? = null,
@@ -19,6 +24,7 @@ class ItemEditorDialogFragment(
     private val binding get() = _binding!!
 
     private lateinit var repository: SixCoachConfectioneryRepository
+    private val productRepository = ProductRepository()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -112,18 +118,44 @@ class ItemEditorDialogFragment(
 
         if (hasError) return
 
-        val itemToSave = Item(
-            id = existingItem?.id ?: Item.generatedId(),
-            name = name,
-            category = category,
-            price = price!!,
-            stock = stock!!,
-            isActive = true
-        )
+        binding.btnSaveItem.isEnabled = false
 
-        repository.saveItem(itemToSave)
-        onItemSaved()
-        dismiss()
+        lifecycleScope.launch(Dispatchers.IO) {
+            val itemToSave = Item(
+                id = existingItem?.id ?: Item.generatedId(),
+                name = name,
+                category = category,
+                price = price!!,
+                stock = stock!!,
+                isActive = true
+            )
+
+            val backendProduct = com.example.sixcoachconfectionery.data.model.Product(
+                productId = existingItem?.id ?: "",
+                productName = name,
+                categoryId = category,
+                price = price,
+                costPrice = price * 0.6,
+                quantityInStock = stock,
+                availability = if (stock > 0) "In Stock" else "Out of Stock",
+                dateAdded = System.currentTimeMillis()
+            )
+
+            val result = productRepository.saveProduct(backendProduct)
+
+            withContext(Dispatchers.Main) {
+                binding.btnSaveItem.isEnabled = true
+                if (result.isSuccess) {
+                    repository.saveItem(itemToSave)
+                    onItemSaved()
+                    dismiss()
+                } else {
+                    val err = result.exceptionOrNull()?.localizedMessage ?: "Failed to save item to database."
+                    binding.tvEditorError.text = err
+                    binding.tvEditorError.visibility = View.VISIBLE
+                }
+            }
+        }
     }
 
     override fun onDestroyView() {
