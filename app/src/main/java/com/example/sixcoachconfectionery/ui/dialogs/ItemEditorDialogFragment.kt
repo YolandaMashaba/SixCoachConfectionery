@@ -47,6 +47,7 @@ class ItemEditorDialogFragment(
             binding.inputItemCategory.setText(existingItem.category)
             binding.inputItemPrice.setText("%.2f".format(existingItem.price))
             binding.inputItemStock.setText(existingItem.stock.toString())
+            binding.cbInternalSupply.isChecked = existingItem.isInternalSupply
         } else {
             binding.tvEditorTitle.text = "Add Bakery Item"
         }
@@ -70,13 +71,13 @@ class ItemEditorDialogFragment(
 
     private fun setupFields() {
         binding.inputItemName.setLabel("Item Name *")
-        binding.inputItemName.setHint("e.g. gwinya, latte")
+        binding.inputItemName.setHint("e.g. gwinya, flour, sugar")
 
         binding.inputItemCategory.setLabel("Category *")
-        binding.inputItemCategory.setHint("e.g. Bread, Coffee, Pastry")
+        binding.inputItemCategory.setHint("e.g. Bread, Ingredients, Supplies")
 
-        binding.inputItemPrice.setLabel("Price (R) *")
-        binding.inputItemPrice.setHint("e.g. 5.00")
+        binding.inputItemPrice.setLabel("Price (R)")
+        binding.inputItemPrice.setHint("e.g. 5.00 (0 for ingredients)")
         binding.inputItemPrice.setInputType(InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL)
 
         binding.inputItemStock.setLabel("Initial Stock *")
@@ -91,6 +92,7 @@ class ItemEditorDialogFragment(
         val category = binding.inputItemCategory.getText()
         val priceStr = binding.inputItemPrice.getText()
         val stockStr = binding.inputItemStock.getText()
+        val isInternal = binding.cbInternalSupply.isChecked
 
         var hasError = false
 
@@ -104,9 +106,9 @@ class ItemEditorDialogFragment(
             hasError = true
         }
 
-        val price = priceStr.toDoubleOrNull()
-        if (price == null || price <= 0) {
-            binding.inputItemPrice.setError("Enter a valid price > 0")
+        val price = priceStr.toDoubleOrNull() ?: 0.0
+        if (!isInternal && price <= 0) {
+            binding.inputItemPrice.setError("Enter a valid price > 0 for customer items")
             hasError = true
         }
 
@@ -125,9 +127,10 @@ class ItemEditorDialogFragment(
                 id = existingItem?.id ?: Item.generatedId(),
                 name = name,
                 category = category,
-                price = price!!,
+                price = price,
                 stock = stock!!,
-                isActive = true
+                isActive = true,
+                isInternalSupply = isInternal
             )
 
             val backendProduct = com.example.sixcoachconfectionery.data.model.Product(
@@ -138,7 +141,8 @@ class ItemEditorDialogFragment(
                 costPrice = price * 0.6,
                 quantityInStock = stock,
                 availability = if (stock > 0) "In Stock" else "Out of Stock",
-                dateAdded = System.currentTimeMillis()
+                dateAdded = System.currentTimeMillis(),
+                isInternalSupply = isInternal
             )
 
             val result = productRepository.saveProduct(backendProduct)
