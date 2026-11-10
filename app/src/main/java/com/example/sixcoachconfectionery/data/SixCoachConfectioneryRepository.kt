@@ -48,10 +48,9 @@ class SixCoachConfectioneryRepository private constructor(private val context: C
             e.printStackTrace()
         }
         
-        seedDefaultData()
         CoroutineScope(Dispatchers.IO).launch {
             loadFromDisk()
-            syncWithBackend()
+            syncWithBackendBlocking()
             withContext(Dispatchers.Main) {
                 listeners.forEach { it.invoke() }
             }
@@ -198,35 +197,31 @@ class SixCoachConfectioneryRepository private constructor(private val context: C
         }
     }
 
-    private fun syncWithBackend() {
-        scope.launch {
-            try {
-                // Sync Products
-                val pResult = productRepository?.getProducts()
-                if (pResult != null && pResult.isSuccess) {
-                    val backendProducts = pResult.getOrNull()
-                    if (!backendProducts.isNullOrEmpty()) {
-                        backendProducts.forEach { bp ->
-                            val existingIndex = items.indexOfFirst { it.id == bp.productId }
-                            val mappedItem = Item(
-                                id = bp.productId,
-                                name = bp.productName,
-                                category = bp.categoryId.ifEmpty { "General" },
-                                price = bp.price,
-                                stock = bp.quantityInStock,
-                                isActive = bp.availability != "Inactive"
-                            )
-                            if (existingIndex != -1) {
-                                items[existingIndex] = mappedItem
-                            } else {
-                                items.add(mappedItem)
-                            }
-                        }
+    private suspend fun syncWithBackendBlocking() {
+        try {
+            // Sync Products
+            val pResult = productRepository?.getProducts()
+            if (pResult != null && pResult.isSuccess) {
+                val backendProducts = pResult.getOrNull()
+                if (!backendProducts.isNullOrEmpty()) {
+                    items.clear()
+                    backendProducts.forEach { bp ->
+                        val mappedItem = Item(
+                            id = bp.productId,
+                            name = bp.productName,
+                            category = bp.categoryId.ifEmpty { "General" },
+                            price = bp.price,
+                            stock = bp.quantityInStock,
+                            isActive = bp.availability != "Inactive",
+                            isInternalSupply = bp.isInternalSupply
+                        )
+                        items.add(mappedItem)
                     }
+                    saveToDisk()
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
@@ -334,7 +329,7 @@ class SixCoachConfectioneryRepository private constructor(private val context: C
     }
 
     fun saveItem(item: Item) {
-        val index = items.indexOfFirst { it.id == item.id }
+        val index = items.indexOfFirst { it.id == item.id || it.name.equals(item.name, ignoreCase = true) }
         if (index != -1) {
             items[index] = item
         } else {
@@ -348,12 +343,7 @@ class SixCoachConfectioneryRepository private constructor(private val context: C
                 if (auth.currentUser == null) {
                     try {
                         auth.signInWithEmailAndPassword("admin@email.com", "admin@123").await()
-                    } catch (e: Exception) {
-                        try {
-                            AuthRepository().seedAdminAccount("admin@email.com", "admin@123")
-                            auth.signInWithEmailAndPassword("admin@email.com", "admin@123").await()
-                        } catch (_: Exception) {}
-                    }
+                    } catch (_: Exception) {}
                 }
 
                 val backendProduct = com.example.sixcoachconfectionery.data.model.Product(
@@ -364,13 +354,17 @@ class SixCoachConfectioneryRepository private constructor(private val context: C
                     costPrice = item.price * 0.6,
                     quantityInStock = item.stock,
                     availability = if (item.stock > 0) "In Stock" else "Out of Stock",
-                    dateAdded = System.currentTimeMillis()
+                    dateAdded = System.currentTimeMillis(),
+                    isInternalSupply = item.isInternalSupply
                 )
                 val result = ProductRepository().saveProduct(backendProduct)
-                if (result.isFailure) {
-                    android.util.Log.e("SixCoachRepo", "Firestore inventory save failed: ${result.exceptionOrNull()?.message}")
+                if (result.isSuccess) {
+                    syncWithBackendBlocking()
+                    withContext(Dispatchers.Main) {
+                        listeners.forEach { it.invoke() }
+                    }
                 } else {
-                    android.util.Log.d("SixCoachRepo", "Firestore inventory saved successfully: ${item.name}")
+                    android.util.Log.e("SixCoachRepo", "Firestore inventory save failed: ${result.exceptionOrNull()?.message}")
                 }
             } catch (e: Exception) {
                 android.util.Log.e("SixCoachRepo", "Exception saving inventory to Firestore", e)

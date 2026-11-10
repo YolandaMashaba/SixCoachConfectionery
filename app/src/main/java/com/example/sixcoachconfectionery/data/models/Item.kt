@@ -8,7 +8,8 @@ data class Item(
     val category: String,
     val price: Double,
     val stock: Int,
-    val isActive: Boolean = true
+    val isActive: Boolean = true,
+    val isInternalSupply: Boolean = false
 ) {
     fun toJson(): JSONObject {
         return JSONObject().apply {
@@ -18,6 +19,7 @@ data class Item(
             put("price", price)
             put("stock", stock)
             put("isActive", isActive)
+            put("isInternalSupply", isInternalSupply)
         }
     }
 
@@ -31,7 +33,8 @@ data class Item(
                 category = json.optString("category", "General"),
                 price = json.optDouble("price", 0.0),
                 stock = json.optInt("stock", 0),
-                isActive = json.optBoolean("isActive", true)
+                isActive = json.optBoolean("isActive", true),
+                isInternalSupply = json.optBoolean("isInternalSupply", false)
             )
         }
     }

@@ -29,6 +29,53 @@
             android:textColor="@color/bakery_text_secondary"
             android:textSize="13sp" />
 
+        <!-- Low Inventory Alert Card -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardLowInventory"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="4dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="2dp"
+            app:strokeColor="@color/bakery_red_light"
+            app:strokeWidth="1.5dp"
+            app:cardBackgroundColor="@color/bakery_red_light"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Low Inventory Alert!"
+                    android:textColor="@color/bakery_red"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="The following items are running low or out of stock:"
+                    android:textColor="@color/bakery_text_primary"
+                    android:textSize="12sp" />
+
+                <LinearLayout
+                    android:id="@+id/layoutLowInventoryContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="vertical" />
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
         <!-- Feature Cards Horizontal / Grid -->
         <LinearLayout
             android:layout_width="match_parent"
@@ -419,11 +466,11 @@
                     android:textSize="12sp" />
 
                 <LinearLayout
+                    android:id="@+id/layoutRecentOrdersContainer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:orientation="vertical"
-                    android:id="@+id/layoutRecentOrdersContainer" />
+                    android:orientation="vertical" />
 
             </LinearLayout>
 
