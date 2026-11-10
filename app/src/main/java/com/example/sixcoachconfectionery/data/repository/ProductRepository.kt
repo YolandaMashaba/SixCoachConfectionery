@@ -71,9 +71,27 @@ class ProductRepository(
 
     suspend fun saveProduct(product: Product): Result<Unit> {
         return try {
-            val id = product.productId.ifEmpty { productsCollection.document().id }
-            val productToSave = product.copy(productId = id)
-            productsCollection.document(id).set(productToSave).await()
+            val query = productsCollection.get().await()
+            val matchingDocs = query.documents.filter { doc ->
+                val name = doc.getString("productName") ?: ""
+                name.equals(product.productName, ignoreCase = true)
+            }
+
+            val docId = if (matchingDocs.isNotEmpty()) {
+                val primaryDocId = matchingDocs[0].id
+                for (i in 1 until matchingDocs.size) {
+                    try {
+                        productsCollection.document(matchingDocs[i].id).delete().await()
+                    } catch (_: Exception) {}
+                }
+                primaryDocId
+            } else {
+                product.productId.ifEmpty { productsCollection.document().id }
+            }
+
+            val availabilityStatus = if (product.quantityInStock > 0) "In Stock" else "Out of Stock"
+            val productToSave = product.copy(productId = docId, availability = availabilityStatus)
+            productsCollection.document(docId).set(productToSave).await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
