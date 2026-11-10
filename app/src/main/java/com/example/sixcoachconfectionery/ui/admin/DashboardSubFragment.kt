@@ -1,6 +1,8 @@
 package com.example.sixcoachconfectionery.ui.admin
 
+import android.graphics.Typeface
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -11,7 +13,9 @@ import androidx.lifecycle.lifecycleScope
 import com.example.sixcoachconfectionery.R
 import com.example.sixcoachconfectionery.data.repository.AnalyticsRepository
 import com.example.sixcoachconfectionery.data.repository.OrderRepository
+import com.example.sixcoachconfectionery.data.repository.ProductRepository
 import com.example.sixcoachconfectionery.databinding.FragmentAdminDashboardBinding
+import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -26,6 +30,8 @@ class DashboardSubFragment : Fragment() {
 
     private val orderRepository = OrderRepository()
     private val analyticsRepository = AnalyticsRepository()
+    private val productRepository = ProductRepository()
+    private var productListener: ListenerRegistration? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -41,6 +47,7 @@ class DashboardSubFragment : Fragment() {
 
         setupActionButtons()
         loadDashboardData()
+        observeLowInventory()
     }
 
     private fun setupActionButtons() {
@@ -55,12 +62,49 @@ class DashboardSubFragment : Fragment() {
         }
     }
 
+    private fun observeLowInventory() {
+        productListener = productRepository.observeProducts({ products ->
+            Log.d("DashboardSub", "observeProducts received ${products.size} products")
+            val lowStockItems = products.filter { it.quantityInStock < 5 }
+            if (isAdded && _binding != null) {
+                activity?.runOnUiThread {
+                    updateLowStockUI(lowStockItems)
+                }
+            }
+        }, { e ->
+            Log.e("DashboardSub", "observeProducts error", e)
+        })
+    }
+
+    private fun updateLowStockUI(lowStockItems: List<com.example.sixcoachconfectionery.data.model.Product>) {
+        Log.d("DashboardSub", "updateLowStockUI: lowStockItems count = ${lowStockItems.size}")
+        if (_binding == null) return
+        if (lowStockItems.isNotEmpty()) {
+            binding.cardLowInventory.visibility = View.VISIBLE
+            binding.layoutLowInventoryContainer.removeAllViews()
+            lowStockItems.forEach { product ->
+                val tv = TextView(requireContext()).apply {
+                    text = "• ${product.productName} (Stock remaining: ${product.quantityInStock})"
+                    textSize = 13f
+                    setTextColor(ContextCompat.getColor(context, R.color.bakery_red))
+                    setTypeface(null, Typeface.BOLD)
+                    setPadding(0, 4, 0, 4)
+                }
+                binding.layoutLowInventoryContainer.addView(tv)
+            }
+        } else {
+            binding.cardLowInventory.visibility = View.GONE
+        }
+    }
+
     private fun loadDashboardData() {
         lifecycleScope.launch(Dispatchers.IO) {
             val metricsResult = analyticsRepository.calculateDashboardMetrics()
             val ordersResult = orderRepository.getOrders()
+            val productsResult = productRepository.getProducts()
 
             withContext(Dispatchers.Main) {
+                if (_binding == null) return@withContext
                 if (metricsResult.isSuccess) {
                     val metrics = metricsResult.getOrNull()
                     if (metrics != null) {
@@ -69,6 +113,12 @@ class DashboardSubFragment : Fragment() {
                         binding.tvStatItemsSold.text = metrics.itemsSold.toString()
                         binding.tvStatAvgOrder.text = "R%.2f".format(metrics.averageOrderValue)
                     }
+                }
+
+                if (productsResult.isSuccess) {
+                    val products = productsResult.getOrNull() ?: emptyList()
+                    val lowStockItems = products.filter { it.quantityInStock < 5 }
+                    updateLowStockUI(lowStockItems)
                 }
 
                 if (ordersResult.isSuccess) {
@@ -118,8 +168,14 @@ class DashboardSubFragment : Fragment() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        loadDashboardData()
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
+        productListener?.remove()
         _binding = null
     }
 }
