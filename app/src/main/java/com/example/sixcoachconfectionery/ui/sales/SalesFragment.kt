@@ -62,7 +62,8 @@ class SalesFragment : Fragment() {
                     category = p.categoryId,
                     price = p.price,
                     stock = p.quantityInStock,
-                    isActive = p.availability == "In Stock"
+                    isActive = p.availability == "In Stock",
+                    isInternalSupply = p.isInternalSupply
                 )
             }
             lifecycleScope.launch(Dispatchers.IO) {
@@ -163,7 +164,8 @@ class SalesFragment : Fragment() {
     }
 
     private fun refreshProducts() {
-        val active = allProductsList.filter { it.isActive }
+        // Exclude internal supplies (baking ingredients/supplies) from the counter staff sales dashboard
+        val active = allProductsList.filter { it.isActive && !it.isInternalSupply }
         val filtered = if (selectedCategory == "All") {
             active
         } else {
