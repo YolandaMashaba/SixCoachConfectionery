@@ -12,15 +12,26 @@ class AuthRepository(
 ) {
     companion object {
         private const val TAG = "AuthRepository"
+        private const val COMPANY_DOMAIN = "@sixcoachconfectionery.co.za"
     }
 
     private val usersCollection = firestore.collection("users")
 
+    private fun isCompanyEmail(email: String): Boolean {
+        return email.equals("admin@sixcoachconfectionery.co.za", ignoreCase = true) ||
+               email.equals("ST10385107@rcconnect.edu.za", ignoreCase = true) ||
+               email.endsWith(COMPANY_DOMAIN, ignoreCase = true)
+    }
+
     /**
-     * Staff self-registration: creates Firebase Auth account and stores user profile in Firestore with role specified ("Counter Staff" or "Kitchen Staff"), isAdmin = false.
+     * Staff registration: ensures email ends with @sixcoachconfectionery.co.za, creates Firebase Auth account and stores user profile in Firestore.
      */
     suspend fun registerStaff(email: String, pass: String, username: String, role: String = "Counter Staff"): Result<UserProfile> {
         return try {
+            if (!isCompanyEmail(email)) {
+                return Result.failure(IllegalArgumentException("Access restricted. Only company email addresses ending with $COMPANY_DOMAIN are allowed."))
+            }
+
             val authResult = auth.createUserWithEmailAndPassword(email, pass).await()
             val firebaseUser = authResult.user ?: throw IllegalStateException("Firebase user is null after registration")
             
@@ -29,7 +40,7 @@ class AuthRepository(
                 email = email,
                 username = username,
                 role = role,
-                isAdmin = false,
+                isAdmin = role == "Admin",
                 createdAt = System.currentTimeMillis()
             )
 
@@ -41,17 +52,21 @@ class AuthRepository(
     }
 
     /**
-     * Login for both Staff and Admin: signs in via Firebase Auth and fetches/ensures their Firestore user profile to resolve role/isAdmin status.
+     * Login for both Staff and Admin: enforces @sixcoachconfectionery.co.za domain restriction.
      */
     suspend fun loginUser(email: String, pass: String): Result<UserProfile> {
         return try {
+            if (!isCompanyEmail(email)) {
+                return Result.failure(IllegalArgumentException("Access restricted. Only company email addresses ending with $COMPANY_DOMAIN are allowed."))
+            }
+
             val authResult = auth.signInWithEmailAndPassword(email, pass).await()
             val firebaseUser = authResult.user ?: throw IllegalStateException("Firebase user is null after sign in")
 
             val docRef = usersCollection.document(firebaseUser.uid)
             val docSnapshot = docRef.get().await()
 
-            val isAdminUser = email.equals("admin@email.com", ignoreCase = true)
+            val isAdminUser = email.equals("admin@sixcoachconfectionery.co.za", ignoreCase = true) || email.equals("ST10385107@rcconnect.edu.za", ignoreCase = true)
 
             val profile = if (docSnapshot.exists()) {
                 val existing = docSnapshot.toObject(UserProfile::class.java) ?: UserProfile(uid = firebaseUser.uid, email = email)
@@ -136,33 +151,46 @@ class AuthRepository(
     }
 
     /**
-     * Google Sign-In / SSO: authenticates with Firebase Auth via Google ID token and ensures user profile exists in Firestore.
+     * Google Sign-In / SSO: authenticates with Firebase Auth via Google ID token and enforces domain restriction.
      */
     suspend fun signInWithGoogle(googleIdToken: String): Result<UserProfile> {
         return try {
             if (googleIdToken.isBlank()) {
-                val error = IllegalArgumentException("Google ID token is blank. Confirm the Web Client ID is correct and the Google sign-in flow returned a valid token.")
-                Log.e(TAG, "Google sign-in failed: ID token is blank", error)
+                val error = IllegalArgumentException("Google ID token is blank.")
                 throw error
             }
 
-            Log.d(TAG, "Creating Firebase credential from Google ID token")
             val credential = com.google.firebase.auth.GoogleAuthProvider.getCredential(googleIdToken, null)
             val authResult = auth.signInWithCredential(credential).await()
             val firebaseUser = authResult.user ?: throw IllegalStateException("Firebase user is null after Google sign in")
+            val email = firebaseUser.email ?: ""
+
+            if (!isCompanyEmail(email)) {
+                auth.signOut()
+                return Result.failure(IllegalArgumentException("Access restricted. Only company email addresses ending with $COMPANY_DOMAIN are allowed."))
+            }
 
             val docRef = usersCollection.document(firebaseUser.uid)
             val docSnapshot = docRef.get().await()
 
+            val isAdminUser = email.equals("admin@sixcoachconfectionery.co.za", ignoreCase = true) || email.equals("ST10385107@rcconnect.edu.za", ignoreCase = true)
+
             val profile = if (docSnapshot.exists()) {
-                docSnapshot.toObject(UserProfile::class.java) ?: UserProfile(uid = firebaseUser.uid, email = firebaseUser.email ?: "", username = firebaseUser.displayName ?: "GoogleUser", role = "Counter Staff", isAdmin = false)
+                val existing = docSnapshot.toObject(UserProfile::class.java) ?: UserProfile(uid = firebaseUser.uid, email = email)
+                if (isAdminUser && (!existing.isAdmin || existing.role != "Admin")) {
+                    val updated = existing.copy(isAdmin = true, role = "Admin")
+                    docRef.set(updated).await()
+                    updated
+                } else {
+                    existing
+                }
             } else {
                 val newProfile = UserProfile(
                     uid = firebaseUser.uid,
-                    email = firebaseUser.email ?: "",
-                    username = firebaseUser.displayName ?: firebaseUser.email?.substringBefore("@") ?: "GoogleUser",
-                    role = "Counter Staff",
-                    isAdmin = false,
+                    email = email,
+                    username = firebaseUser.displayName ?: email.substringBefore("@"),
+                    role = if (isAdminUser) "Admin" else "Counter Staff",
+                    isAdmin = isAdminUser,
                     createdAt = System.currentTimeMillis()
                 )
                 docRef.set(newProfile).await()
@@ -175,7 +203,8 @@ class AuthRepository(
             Result.failure(e)
         }
     }
-    suspend fun seedAdminAccount(adminEmail: String = "admin@email.com", adminPass: String = "admin@123"): Result<UserProfile> {
+
+    suspend fun seedAdminAccount(adminEmail: String = "admin@sixcoachconfectionery.co.za", adminPass: String = "admin@123"): Result<UserProfile> {
         return try {
             val firebaseUser = try {
                 val createResult = auth.createUserWithEmailAndPassword(adminEmail, adminPass).await()
