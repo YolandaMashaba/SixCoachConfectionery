@@ -12,7 +12,8 @@ import java.util.concurrent.TimeUnit
 
 class KitchenOrderAdapter(
     private var orders: List<Order>,
-    private val onCompleteOrder: (Order) -> Unit
+    private val onCompleteOrder: (Order) -> Unit,
+    private val onOrderClick: (Order) -> Unit
 ) : RecyclerView.Adapter<KitchenOrderAdapter.KitchenViewHolder>() {
 
     class KitchenViewHolder(val binding: ItemKitchenOrderBinding) :
@@ -70,6 +71,10 @@ class KitchenOrderAdapter(
 
             btnCompleteOrder.setOnClickListener {
                 onCompleteOrder(order)
+            }
+
+            root.setOnClickListener {
+                onOrderClick(order)
             }
         }
     }
