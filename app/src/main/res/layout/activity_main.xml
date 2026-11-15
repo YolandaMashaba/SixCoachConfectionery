@@ -63,7 +63,7 @@
             android:id="@+id/btnHeaderAuth"
             android:layout_width="wrap_content"
             android:layout_height="36dp"
-            android:text="Login / Register"
+            android:text="Login"
             android:textSize="12sp"
             android:textColor="@color/bakery_brown"
             android:backgroundTint="@color/white"
