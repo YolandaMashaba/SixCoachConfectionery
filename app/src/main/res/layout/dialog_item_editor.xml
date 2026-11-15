@@ -42,7 +42,17 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
-        android:text="Internal Bakery Supply (Ingredients / Not for Sale on Counter)"
+        android:text="Internal Bakery Supply (Ingredients / Back-of-House)"
+        android:textColor="@color/bakery_text_primary"
+        android:textSize="13sp" />
+
+    <CheckBox
+        android:id="@+id/cbCounterSales"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="Show on Counter Staff POS Dashboard"
+        android:checked="true"
         android:textColor="@color/bakery_text_primary"
         android:textSize="13sp" />
 
