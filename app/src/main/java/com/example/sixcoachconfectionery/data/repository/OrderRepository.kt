@@ -252,4 +252,13 @@ class OrderRepository(
             Result.failure(e)
         }
     }
+
+    suspend fun getOrderItems(orderId: String): Result<List<OrderItem>> {
+        return try {
+            val snapshot = orderItemsCollection.whereEqualTo("orderId", orderId).get().await()
+            Result.success(snapshot.toObjects(OrderItem::class.java))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
