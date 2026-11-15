@@ -5,6 +5,7 @@ import android.text.InputType
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ArrayAdapter
 import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.lifecycleScope
 import com.example.sixcoachconfectionery.R
@@ -24,6 +25,7 @@ class StaffEditorDialogFragment(
     private val binding get() = _binding!!
 
     private val authRepository = AuthRepository()
+    private val branches = arrayOf("Roodepoort", "Killarney", "Flora Centre")
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -38,9 +40,10 @@ class StaffEditorDialogFragment(
         super.onViewCreated(view, savedInstanceState)
 
         setupFields()
+        setupBranchSpinner()
 
         if (existingUser != null) {
-            binding.tvStaffEditorTitle.text = "Edit Staff Role"
+            binding.tvStaffEditorTitle.text = "Edit Staff Role & Branch"
             binding.inputStaffEmail.setText(existingUser.email.ifEmpty { existingUser.username })
             binding.inputStaffEmail.isEnabled = false
 
@@ -48,6 +51,11 @@ class StaffEditorDialogFragment(
                 "Admin" -> binding.rgStaffRole.check(R.id.rbStaffAdmin)
                 "Kitchen Staff" -> binding.rgStaffRole.check(R.id.rbStaffKitchen)
                 else -> binding.rgStaffRole.check(R.id.rbStaffCounter)
+            }
+
+            val branchIndex = branches.indexOf(existingUser.branch)
+            if (branchIndex != -1) {
+                binding.spinnerStaffBranch.setSelection(branchIndex)
             }
         } else {
             binding.tvStaffEditorTitle.text = "Add New Staff"
@@ -62,9 +70,15 @@ class StaffEditorDialogFragment(
         }
     }
 
+    private fun setupBranchSpinner() {
+        val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, branches)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        binding.spinnerStaffBranch.adapter = adapter
+    }
+
     private fun setupFields() {
-        binding.inputStaffEmail.setLabel("Staff Email *")
-        binding.inputStaffEmail.setHint("e.g. staff@whiskit.com")
+        binding.inputStaffEmail.setLabel("Company Email *")
+        binding.inputStaffEmail.setHint("e.g. staff@sixcoachconfectionery.co.za")
 
         binding.inputStaffPassword.setLabel("Password (min 8 chars, Upper, Lower, Number, Special) *")
         binding.inputStaffPassword.setHint("Enter strong password")
@@ -100,12 +114,16 @@ class StaffEditorDialogFragment(
             R.id.rbStaffKitchen -> "Kitchen Staff"
             else -> "Counter Staff"
         }
+        val branch = binding.spinnerStaffBranch.selectedItem?.toString() ?: "Roodepoort"
         val isAdmin = (role == "Admin")
 
         var hasError = false
 
         if (email.isEmpty()) {
             binding.inputStaffEmail.setError("Email is required")
+            hasError = true
+        } else if (!email.endsWith("@sixcoachconfectionery.co.za", ignoreCase = true) && !email.equals("admin@sixcoachconfectionery.co.za", ignoreCase = true) && !email.equals("ST10385107@rcconnect.edu.za", ignoreCase = true)) {
+            binding.inputStaffEmail.setError("Only company emails ending with @sixcoachconfectionery.co.za are allowed")
             hasError = true
         }
 
@@ -125,12 +143,12 @@ class StaffEditorDialogFragment(
 
         lifecycleScope.launch(Dispatchers.IO) {
             val result = if (existingUser != null) {
-                authRepository.updateUserRole(existingUser.uid, role, isAdmin)
+                authRepository.updateUserRole(existingUser.uid, role, isAdmin, branch)
             } else {
                 if (isAdmin) {
                     authRepository.seedAdminAccount(email, password)
                 } else {
-                    authRepository.registerStaff(email, password, email.substringBefore("@"), role)
+                    authRepository.registerStaff(email, password, email.substringBefore("@"), role, branch)
                 }
             }
 
