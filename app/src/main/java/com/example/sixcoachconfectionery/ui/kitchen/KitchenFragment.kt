@@ -14,6 +14,7 @@ import com.example.sixcoachconfectionery.data.models.Order as LocalOrder
 import com.example.sixcoachconfectionery.data.repository.OrderRepository
 import com.example.sixcoachconfectionery.databinding.FragmentKitchenBinding
 import com.example.sixcoachconfectionery.ui.adapters.KitchenOrderAdapter
+import com.example.sixcoachconfectionery.ui.dialogs.KitchenOrderDetailsDialogFragment
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -55,6 +56,23 @@ class KitchenFragment : Fragment() {
             Toast.makeText(requireContext(), "Kitchen display refreshed", Toast.LENGTH_SHORT).show()
         }
 
+        binding.btnClearMockKitchen.setOnClickListener {
+            lifecycleScope.launch(Dispatchers.IO) {
+                val kOrdersResult = orderRepository.getKitchenOrders()
+                if (kOrdersResult.isSuccess) {
+                    val kOrders = kOrdersResult.getOrNull() ?: emptyList()
+                    kOrders.forEach { ko ->
+                        orderRepository.updateKitchenOrderStatus(ko.kitchenOrderId, "Completed")
+                        orderRepository.updateOrderStatus(ko.orderId, "Completed")
+                    }
+                }
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(requireContext(), "All mockup/pending orders cleared!", Toast.LENGTH_SHORT).show()
+                    refreshOrders()
+                }
+            }
+        }
+
         binding.swipeRefreshKitchen.setOnRefreshListener {
             refreshOrders()
             binding.swipeRefreshKitchen.isRefreshing = false
@@ -65,26 +83,48 @@ class KitchenFragment : Fragment() {
     }
 
     private fun setupAdapter() {
-        orderAdapter = KitchenOrderAdapter(emptyList()) { order ->
-            lifecycleScope.launch(Dispatchers.IO) {
-                // Complete kitchen order and main order in Firestore
-                // We can query kitchen orders to find matching kitchenOrderId by order.id or reference
-                val kOrdersResult = orderRepository.getKitchenOrders()
-                if (kOrdersResult.isSuccess) {
-                    val kOrders = kOrdersResult.getOrNull() ?: emptyList()
-                    val target = kOrders.find { it.kitchenOrderId.hashCode() == order.id || it.orderId.hashCode() == order.id }
-                    if (target != null) {
-                        orderRepository.updateKitchenOrderStatus(target.kitchenOrderId, "Completed")
-                        orderRepository.updateOrderStatus(target.orderId, "Completed")
+        orderAdapter = KitchenOrderAdapter(
+            emptyList(),
+            onCompleteOrder = { order ->
+                lifecycleScope.launch(Dispatchers.IO) {
+                    val kOrdersResult = orderRepository.getKitchenOrders()
+                    if (kOrdersResult.isSuccess) {
+                        val kOrders = kOrdersResult.getOrNull() ?: emptyList()
+                        val target = kOrders.find { it.kitchenOrderId.hashCode() == order.id || it.orderId.hashCode() == order.id }
+                        if (target != null) {
+                            orderRepository.updateKitchenOrderStatus(target.kitchenOrderId, "Completed")
+                            orderRepository.updateOrderStatus(target.orderId, "Completed")
+                        }
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(requireContext(), "Order completed & sent to Dashboard!", Toast.LENGTH_SHORT).show()
+                        refreshOrders()
                     }
                 }
+            },
+            onOrderClick = { order ->
+                lifecycleScope.launch(Dispatchers.IO) {
+                    val kOrdersResult = orderRepository.getKitchenOrders()
+                    val ordersResult = orderRepository.getOrders()
+                    if (kOrdersResult.isSuccess && ordersResult.isSuccess) {
+                        val kOrders = kOrdersResult.getOrNull() ?: emptyList()
+                        val allOrders = ordersResult.getOrNull() ?: emptyList()
+                        val targetKo = kOrders.find { ko -> ko.kitchenOrderId.hashCode() == order.id || ko.orderId.hashCode() == order.id }
+                        val targetOrder = allOrders.find { o -> o.orderId == targetKo?.orderId }
 
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(requireContext(), "Order completed & sent to Dashboard!", Toast.LENGTH_SHORT).show()
-                    refreshOrders()
+                        if (targetKo != null && targetOrder != null) {
+                            withContext(Dispatchers.Main) {
+                                val detailsDialog = KitchenOrderDetailsDialogFragment(targetKo, targetOrder) {
+                                    refreshOrders()
+                                }
+                                detailsDialog.show(parentFragmentManager, "KitchenOrderDetailsDialog")
+                            }
+                        }
+                    }
                 }
             }
-        }
+        )
         binding.rvPendingOrders.layoutManager = LinearLayoutManager(requireContext())
         binding.rvPendingOrders.adapter = orderAdapter
     }
