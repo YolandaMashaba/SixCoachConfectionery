@@ -26,7 +26,7 @@ class AuthRepository(
     /**
      * Staff registration: ensures email ends with @sixcoachconfectionery.co.za, creates Firebase Auth account and stores user profile in Firestore.
      */
-    suspend fun registerStaff(email: String, pass: String, username: String, role: String = "Counter Staff"): Result<UserProfile> {
+    suspend fun registerStaff(email: String, pass: String, username: String, role: String = "Counter Staff", branch: String = "Roodepoort"): Result<UserProfile> {
         return try {
             if (!isCompanyEmail(email)) {
                 return Result.failure(IllegalArgumentException("Access restricted. Only company email addresses ending with $COMPANY_DOMAIN are allowed."))
@@ -41,6 +41,7 @@ class AuthRepository(
                 username = username,
                 role = role,
                 isAdmin = role == "Admin",
+                branch = branch,
                 createdAt = System.currentTimeMillis()
             )
 
@@ -109,14 +110,15 @@ class AuthRepository(
     }
 
     /**
-     * Updates staff permissions (Admin feature).
+     * Updates staff permissions and branch (Admin feature).
      */
-    suspend fun updateUserRole(uid: String, role: String, isAdmin: Boolean): Result<Unit> {
+    suspend fun updateUserRole(uid: String, role: String, isAdmin: Boolean, branch: String = "Roodepoort"): Result<Unit> {
         return try {
             usersCollection.document(uid).update(
                 mapOf(
                     "role" to role,
-                    "isAdmin" to isAdmin
+                    "isAdmin" to isAdmin,
+                    "branch" to branch
                 )
             ).await()
             Result.success(Unit)
@@ -220,6 +222,7 @@ class AuthRepository(
                 username = "SystemAdmin",
                 role = "Admin",
                 isAdmin = true,
+                branch = "Roodepoort",
                 createdAt = System.currentTimeMillis()
             )
 
