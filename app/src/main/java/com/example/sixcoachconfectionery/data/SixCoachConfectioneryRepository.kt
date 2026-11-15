@@ -213,7 +213,8 @@ class SixCoachConfectioneryRepository private constructor(private val context: C
                             price = bp.price,
                             stock = bp.quantityInStock,
                             isActive = bp.availability != "Inactive",
-                            isInternalSupply = bp.isInternalSupply
+                            isInternalSupply = bp.isInternalSupply,
+                            isCounterSales = bp.isCounterSales
                         )
                         items.add(mappedItem)
                     }
@@ -355,7 +356,8 @@ class SixCoachConfectioneryRepository private constructor(private val context: C
                     quantityInStock = item.stock,
                     availability = if (item.stock > 0) "In Stock" else "Out of Stock",
                     dateAdded = System.currentTimeMillis(),
-                    isInternalSupply = item.isInternalSupply
+                    isInternalSupply = item.isInternalSupply,
+                    isCounterSales = item.isCounterSales
                 )
                 val result = ProductRepository().saveProduct(backendProduct)
                 if (result.isSuccess) {
