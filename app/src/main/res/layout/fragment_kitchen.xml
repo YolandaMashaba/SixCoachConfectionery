@@ -33,22 +33,41 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:text="Pending orders refresh every 30 seconds (pull Refresh for immediate sync)."
+                android:text="Pending orders refresh automatically (pull Refresh for immediate sync)."
                 android:textColor="@color/bakery_text_secondary"
                 android:textSize="12sp" />
 
         </LinearLayout>
 
-        <Button
-            android:id="@+id/btnRefreshKitchen"
-            style="?attr/materialButtonOutlinedStyle"
+        <LinearLayout
             android:layout_width="wrap_content"
-            android:layout_height="38dp"
-            android:text="Refresh now"
-            android:textColor="@color/bakery_brown"
-            android:textSize="12sp"
-            android:backgroundTint="@color/bakery_tan_light"
-            app:cornerRadius="8dp" />
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnClearMockKitchen"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:layout_marginEnd="8dp"
+                android:text="Clear Orders"
+                android:textColor="@color/bakery_red"
+                android:textSize="12sp"
+                android:backgroundTint="@color/bakery_red_light"
+                app:cornerRadius="8dp" />
+
+            <Button
+                android:id="@+id/btnRefreshKitchen"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:text="Refresh"
+                android:textColor="@color/bakery_brown"
+                android:textSize="12sp"
+                android:backgroundTint="@color/bakery_tan_light"
+                app:cornerRadius="8dp" />
+
+        </LinearLayout>
 
     </LinearLayout>
 
