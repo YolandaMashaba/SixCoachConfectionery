@@ -32,6 +32,8 @@ class UserAdapter(
             tvUserRoleBadge.text = roleText
             tvUserRoleBadge.setTextColor(ContextCompat.getColor(root.context, R.color.bakery_text_primary))
 
+            tvUserBranch.text = user.branch.ifEmpty { "Roodepoort" }
+
             btnEditUser.setOnClickListener { onEditUser(user) }
             btnDeleteUser.setOnClickListener { onDeleteUser(user) }
         }
