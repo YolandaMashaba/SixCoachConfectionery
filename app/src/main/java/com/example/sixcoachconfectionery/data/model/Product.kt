@@ -14,5 +14,8 @@ data class Product(
     val dateAdded: Long = System.currentTimeMillis(),
     @get:PropertyName("isInternalSupply")
     @set:PropertyName("isInternalSupply")
-    var isInternalSupply: Boolean = false
+    var isInternalSupply: Boolean = false,
+    @get:PropertyName("isCounterSales")
+    @set:PropertyName("isCounterSales")
+    var isCounterSales: Boolean = true
 )
