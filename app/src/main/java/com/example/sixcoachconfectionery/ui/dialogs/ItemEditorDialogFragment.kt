@@ -48,8 +48,10 @@ class ItemEditorDialogFragment(
             binding.inputItemPrice.setText("%.2f".format(existingItem.price))
             binding.inputItemStock.setText(existingItem.stock.toString())
             binding.cbInternalSupply.isChecked = existingItem.isInternalSupply
+            binding.cbCounterSales.isChecked = existingItem.isCounterSales
         } else {
             binding.tvEditorTitle.text = "Add Bakery Item"
+            binding.cbCounterSales.isChecked = true
         }
 
         binding.btnCancelItem.setOnClickListener {
@@ -77,7 +79,7 @@ class ItemEditorDialogFragment(
         binding.inputItemCategory.setHint("e.g. Bread, Ingredients, Supplies")
 
         binding.inputItemPrice.setLabel("Price (R)")
-        binding.inputItemPrice.setHint("e.g. 5.00 (0 for ingredients)")
+        binding.inputItemPrice.setHint("e.g. 5.00")
         binding.inputItemPrice.setInputType(InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL)
 
         binding.inputItemStock.setLabel("Initial Stock *")
@@ -93,6 +95,7 @@ class ItemEditorDialogFragment(
         val priceStr = binding.inputItemPrice.getText()
         val stockStr = binding.inputItemStock.getText()
         val isInternal = binding.cbInternalSupply.isChecked
+        val isCounter = binding.cbCounterSales.isChecked
 
         var hasError = false
 
@@ -107,8 +110,8 @@ class ItemEditorDialogFragment(
         }
 
         val price = priceStr.toDoubleOrNull() ?: 0.0
-        if (!isInternal && price <= 0) {
-            binding.inputItemPrice.setError("Enter a valid price > 0 for customer items")
+        if (isCounter && price <= 0) {
+            binding.inputItemPrice.setError("Enter a valid price > 0 for counter sales")
             hasError = true
         }
 
@@ -130,7 +133,8 @@ class ItemEditorDialogFragment(
                 price = price,
                 stock = stock!!,
                 isActive = true,
-                isInternalSupply = isInternal
+                isInternalSupply = isInternal,
+                isCounterSales = isCounter
             )
 
             val backendProduct = com.example.sixcoachconfectionery.data.model.Product(
@@ -142,7 +146,8 @@ class ItemEditorDialogFragment(
                 quantityInStock = stock,
                 availability = if (stock > 0) "In Stock" else "Out of Stock",
                 dateAdded = System.currentTimeMillis(),
-                isInternalSupply = isInternal
+                isInternalSupply = isInternal,
+                isCounterSales = isCounter
             )
 
             val result = productRepository.saveProduct(backendProduct)
