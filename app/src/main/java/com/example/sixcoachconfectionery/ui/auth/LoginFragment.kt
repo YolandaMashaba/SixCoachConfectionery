@@ -2,21 +2,23 @@ package com.example.sixcoachconfectionery.ui.auth
 
 import android.os.Bundle
 import android.text.InputType
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.activity.result.IntentSenderRequest
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
+import androidx.credentials.GetCredentialRequest
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.example.sixcoachconfectionery.MainActivity
 import com.example.sixcoachconfectionery.data.repository.AuthRepository
 import com.example.sixcoachconfectionery.databinding.FragmentLoginBinding
-import com.google.android.gms.auth.api.identity.BeginSignInRequest
-import com.google.android.gms.auth.api.identity.Identity
-import com.google.android.gms.auth.api.identity.SignInClient
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -24,90 +26,10 @@ import kotlinx.coroutines.withContext
 
 class LoginFragment : Fragment() {
 
-    companion object {
-        private const val TAG = "LoginFragment"
-        private const val GOOGLE_WEB_CLIENT_ID = "337377997144-bjd8tsh7vksnuk7sd04hinojrekrn0eu.apps.googleusercontent.com"
-    }
-
     private var _binding: FragmentLoginBinding? = null
     private val binding get() = _binding!!
 
     private val authRepository = AuthRepository()
-    private lateinit var oneTapClient: SignInClient
-
-    private val googleSignInLauncher = registerForActivityResult(
-        ActivityResultContracts.StartIntentSenderForResult()
-    ) { result ->
-        try {
-            val credential = oneTapClient.getSignInCredentialFromIntent(result.data)
-            val idToken = credential.googleIdToken
-
-            if (idToken.isNullOrBlank()) {
-                Log.e(TAG, "Google Sign-In returned a credential without a Google ID token.")
-                binding.btnGoogleSignIn.isEnabled = true
-                Toast.makeText(requireContext(), "Google sign-in failed: ID Token was missing. Check the Web Client ID configuration.", Toast.LENGTH_LONG).show()
-                return@registerForActivityResult
-            }
-
-            Log.d(TAG, "Google Sign-In credential received. Forwarding token to Firebase auth.")
-            lifecycleScope.launch(Dispatchers.IO) {
-                val authResult = authRepository.signInWithGoogle(idToken)
-                withContext(Dispatchers.Main) {
-                    binding.btnGoogleSignIn.isEnabled = true
-                    if (authResult.isSuccess) {
-                        val userProfile = authResult.getOrNull()
-                        Toast.makeText(requireContext(), "Signed in with Google as ${userProfile?.username ?: "User"}!", Toast.LENGTH_SHORT).show()
-                        if (userProfile != null) {
-                            (activity as? MainActivity)?.onUserLoggedIn(userProfile)
-                        }
-                    } else {
-                        val err = authResult.exceptionOrNull()?.localizedMessage ?: "Google sign-in failed"
-                        Log.e(TAG, "Firebase Google auth failed: ${authResult.exceptionOrNull()}", authResult.exceptionOrNull())
-                        Toast.makeText(requireContext(), err, Toast.LENGTH_LONG).show()
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to handle Google One Tap result", e)
-            binding.btnGoogleSignIn.isEnabled = true
-            Toast.makeText(requireContext(), "Google sign-in failed: ${e.localizedMessage ?: "Unexpected error"}", Toast.LENGTH_LONG).show()
-        }
-    }
-
-    private fun buildGoogleSignInRequest(): BeginSignInRequest {
-        return BeginSignInRequest.builder()
-            .setGoogleIdTokenRequestOptions(
-                BeginSignInRequest.GoogleIdTokenRequestOptions.builder()
-                    .setSupported(true)
-                    .setServerClientId(GOOGLE_WEB_CLIENT_ID)
-                    .setFilterByAuthorizedAccounts(false)
-                    .build()
-            )
-            .setAutoSelectEnabled(false)
-            .build()
-    }
-
-    private fun handleGoogleSignInResult() {
-        binding.btnGoogleSignIn.isEnabled = false
-
-        val request = buildGoogleSignInRequest()
-        oneTapClient.beginSignIn(request)
-            .addOnSuccessListener { result ->
-                try {
-                    val intentSenderRequest = IntentSenderRequest.Builder(result.pendingIntent.intentSender).build()
-                    googleSignInLauncher.launch(intentSenderRequest)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Unable to launch Google One Tap Sign-In", e)
-                    binding.btnGoogleSignIn.isEnabled = true
-                    Toast.makeText(requireContext(), "Google sign-in failed: ${e.localizedMessage ?: "Unable to open sign-in dialog"}", Toast.LENGTH_LONG).show()
-                }
-            }
-            .addOnFailureListener { e ->
-                Log.e(TAG, "No Google account available for One Tap sign-in. This can happen when the device has no Google account or Play Services is not configured correctly.", e)
-                binding.btnGoogleSignIn.isEnabled = true
-                Toast.makeText(requireContext(), "No Google account available on this device. Please add a Google account in Settings and try again.", Toast.LENGTH_LONG).show()
-            }
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -121,13 +43,12 @@ class LoginFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        oneTapClient = Identity.getSignInClient(requireContext())
         setupFields()
 
         // Seed default admin account asynchronously on background thread
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                authRepository.seedAdminAccount("admin@email.com", "admin@123")
+                authRepository.seedAdminAccount("admin@sixcoachconfectionery.co.za", "admin@123")
             } catch (_: Exception) {}
         }
 
@@ -136,17 +57,16 @@ class LoginFragment : Fragment() {
         }
 
         binding.btnGoogleSignIn.setOnClickListener {
-            handleGoogleSignInResult()
+            signInWithGoogle()
         }
 
-        binding.root.findViewById<View>(com.example.sixcoachconfectionery.R.id.tvNavRegister)?.setOnClickListener {
-            (activity as? MainActivity)?.navigateToRegister()
-        }
+        // Registration link removed as registration page is no longer required
+        binding.root.findViewById<View>(com.example.sixcoachconfectionery.R.id.tvNavRegister)?.visibility = View.GONE
     }
 
     private fun setupFields() {
-        binding.inputLoginUsername.setLabel("Email *")
-        binding.inputLoginUsername.setHint("e.g. admin@email.com or staff email")
+        binding.inputLoginUsername.setLabel("Company Email *")
+        binding.inputLoginUsername.setHint("e.g. admin@sixcoachconfectionery.co.za")
 
         binding.inputLoginPassword.setLabel("Password *")
         binding.inputLoginPassword.setHint("Enter your password")
@@ -163,7 +83,11 @@ class LoginFragment : Fragment() {
         if (email.isEmpty()) {
             binding.inputLoginUsername.setError("Email is required")
             hasError = true
+        } else if (!email.endsWith("@sixcoachconfectionery.co.za", ignoreCase = true) && !email.equals("admin@sixcoachconfectionery.co.za", ignoreCase = true) && !email.equals("ST10385107@rcconnect.edu.za", ignoreCase = true)) {
+            binding.inputLoginUsername.setError("Only emails ending with @sixcoachconfectionery.co.za are allowed")
+            hasError = true
         }
+
         if (password.isEmpty()) {
             binding.inputLoginPassword.setError("Password is required")
             hasError = true
@@ -186,9 +110,92 @@ class LoginFragment : Fragment() {
                         (activity as? MainActivity)?.navigateToSales()
                     }
                 } else {
-                    val errorMsg = result.exceptionOrNull()?.localizedMessage ?: "Login failed. Check credentials."
+                    val rawError = result.exceptionOrNull() ?: Exception("Login failed")
+                    val errorMsg = translateAuthError(rawError)
                     binding.tvLoginError.text = errorMsg
                     binding.tvLoginError.visibility = View.VISIBLE
+                }
+            }
+        }
+    }
+
+    private fun signInWithGoogle() {
+        binding.btnGoogleSignIn.isEnabled = false
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val serverClientId = "337377997144-bjd8tsh7vksnuk7sd04hinojrekrn0eu.apps.googleusercontent.com"
+
+                val googleIdOption = GetGoogleIdOption.Builder()
+                    .setFilterByAuthorizedAccounts(false)
+                    .setServerClientId(serverClientId)
+                    .setAutoSelectEnabled(false)
+                    .build()
+
+                val request = GetCredentialRequest.Builder()
+                    .addCredentialOption(googleIdOption)
+                    .build()
+
+                val credentialManager = CredentialManager.create(requireContext())
+                val result = credentialManager.getCredential(requireContext(), request)
+                val credential = result.credential
+
+                if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                    val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                    val googleIdToken = googleIdTokenCredential.idToken
+
+                    val authResult = authRepository.signInWithGoogle(googleIdToken)
+                    withContext(Dispatchers.Main) {
+                        binding.btnGoogleSignIn.isEnabled = true
+                        if (authResult.isSuccess) {
+                            val userProfile = authResult.getOrNull()
+                            Toast.makeText(requireContext(), "Signed in with Google as ${userProfile?.username ?: "User"}!", Toast.LENGTH_SHORT).show()
+                            if (userProfile != null) {
+                                (activity as? MainActivity)?.onUserLoggedIn(userProfile)
+                            }
+                        } else {
+                            val rawError = authResult.exceptionOrNull() ?: Exception("Google sign-in failed")
+                            Toast.makeText(requireContext(), translateAuthError(rawError), Toast.LENGTH_LONG).show()
+                        }
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        binding.btnGoogleSignIn.isEnabled = true
+                        Toast.makeText(requireContext(), "Unexpected credential type received", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: androidx.credentials.exceptions.NoCredentialException) {
+                withContext(Dispatchers.Main) {
+                    binding.btnGoogleSignIn.isEnabled = true
+                    Toast.makeText(requireContext(), "Google Sign-In requires a valid Web Client ID configured in Firebase Console / google-services.xml, or Google accounts added in device settings.", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    binding.btnGoogleSignIn.isEnabled = true
+                    Toast.makeText(requireContext(), "Google sign-in error: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    private fun translateAuthError(e: Throwable): String {
+        val msg = e.localizedMessage?.lowercase() ?: ""
+        if (msg.contains("restricted") || msg.contains("@sixcoachconfectionery.co.za")) {
+            return e.localizedMessage ?: "Only email addresses ending with @sixcoachconfectionery.co.za are allowed."
+        }
+        return when (e) {
+            is FirebaseAuthInvalidUserException -> "Account does not exist"
+            is FirebaseAuthInvalidCredentialsException -> "Incorrect email or password. Please check your credentials and try again."
+            is FirebaseAuthUserCollisionException -> "An account with this email address already exists."
+            else -> {
+                when {
+                    msg.contains("no user") || msg.contains("user-not-found") || msg.contains("not found") || msg.contains("no record") ->
+                        "Account does not exist"
+                    msg.contains("password") || msg.contains("credentials") || msg.contains("wrong-password") ->
+                        "Incorrect email or password. Please check your credentials and try again."
+                    msg.contains("network") || msg.contains("connect") || msg.contains("unknownhost") ->
+                        "Network connection error. Please check your internet connection and try again."
+                    else ->
+                        e.localizedMessage ?: "Authentication failed. Please check your details and try again."
                 }
             }
         }
