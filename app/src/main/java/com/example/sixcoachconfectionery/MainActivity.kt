@@ -13,10 +13,10 @@ import com.google.firebase.ktx.Firebase
 import androidx.fragment.app.Fragment
 import com.example.sixcoachconfectionery.data.SixCoachConfectioneryRepository
 import com.example.sixcoachconfectionery.data.model.UserProfile
+import com.example.sixcoachconfectionery.data.models.User
 import com.example.sixcoachconfectionery.databinding.ActivityMainBinding
 import com.example.sixcoachconfectionery.ui.admin.AdminFragment
 import com.example.sixcoachconfectionery.ui.auth.LoginFragment
-import com.example.sixcoachconfectionery.ui.auth.RegisterFragment
 import com.example.sixcoachconfectionery.ui.kitchen.KitchenFragment
 import com.example.sixcoachconfectionery.ui.sales.SalesFragment
 import com.google.firebase.firestore.FirebaseFirestore
@@ -63,39 +63,86 @@ class MainActivity : AppCompatActivity() {
 
         setupHeader()
 
-        // Persistent Login State Check: Remember logged in session
-        val currentUser = auth.currentUser
-        if (currentUser != null) {
-            checkUserRoleAndRoute(currentUser.uid)
-        } else {
-            navigateToLogin()
+        // Persistent Login State Check: Route immediately based on email/role
+        if (savedInstanceState == null) {
+            val currentUser = auth.currentUser
+            if (currentUser != null) {
+                val email = currentUser.email ?: ""
+                if (email.equals("admin@sixcoachconfectionery.co.za", ignoreCase = true) || email.equals("ST10385107@rcconnect.edu.za", ignoreCase = true) || email.endsWith("@sixcoachconfectionery.co.za", ignoreCase = true)) {
+                    // Check role in background or route default
+                    navigateToSales()
+                    checkUserRoleAndRoute(currentUser.uid)
+                } else {
+                    auth.signOut()
+                    navigateToLogin()
+                }
+            } else {
+                navigateToLogin()
+            }
         }
     }
 
     private fun checkUserRoleAndRoute(uid: String) {
         CoroutineScope(Dispatchers.IO).launch {
+            var targetRoute = 0 // 0 = Sales, 1 = Kitchen, 2 = Admin
             try {
                 val doc = FirebaseFirestore.getInstance()
                     .collection("users").document(uid).get().await()
                 val profile = doc.toObject(UserProfile::class.java)
-                withContext(Dispatchers.Main) {
-                    updateHeaderUserStatus()
-                    when {
-                        profile?.isAdmin == true || profile?.role == "Admin" -> navigateToAdmin()
-                        profile?.role == "Kitchen Staff" -> navigateToKitchen()
-                        else -> navigateToSales()
-                    }
+                val email = auth.currentUser?.email ?: ""
+                val isAdmin = profile?.isAdmin == true || profile?.role == "Admin" || email.equals("admin@sixcoachconfectionery.co.za", ignoreCase = true) || email.equals("ST10385107@rcconnect.edu.za", ignoreCase = true)
+                val isKitchen = profile?.role == "Kitchen Staff"
+
+                if (profile != null) {
+                    repository.setCurrentUser(
+                        User(
+                            id = profile.uid,
+                            username = profile.username.ifEmpty { profile.email },
+                            passwordHash = "",
+                            isAdmin = isAdmin
+                        )
+                    )
+                } else if (isAdmin) {
+                    repository.setCurrentUser(
+                        User(
+                            id = uid,
+                            username = "SystemAdmin",
+                            passwordHash = "",
+                            isAdmin = true
+                        )
+                    )
+                }
+
+                targetRoute = when {
+                    isAdmin -> 2
+                    isKitchen -> 1
+                    else -> 0
                 }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    updateHeaderUserStatus()
-                    navigateToSales()
+                val email = auth.currentUser?.email ?: ""
+                targetRoute = if (email.equals("admin@sixcoachconfectionery.co.za", ignoreCase = true) || email.equals("ST10385107@rcconnect.edu.za", ignoreCase = true)) 2 else 0
+            }
+
+            withContext(Dispatchers.Main) {
+                updateHeaderUserStatus()
+                when (targetRoute) {
+                    2 -> navigateToAdmin()
+                    1 -> navigateToKitchen()
+                    else -> navigateToSales()
                 }
             }
         }
     }
 
     fun onUserLoggedIn(profile: UserProfile) {
+        repository.setCurrentUser(
+            User(
+                id = profile.uid,
+                username = profile.username.ifEmpty { profile.email },
+                passwordHash = "",
+                isAdmin = profile.isAdmin || profile.role == "Admin"
+            )
+        )
         updateHeaderUserStatus()
         when {
             profile.isAdmin || profile.role == "Admin" -> navigateToAdmin()
@@ -156,10 +203,6 @@ class MainActivity : AppCompatActivity() {
 
     fun navigateToLogin() {
         replaceFragment(LoginFragment())
-    }
-
-    fun navigateToRegister() {
-        replaceFragment(RegisterFragment())
     }
 
     override fun onDestroy() {
