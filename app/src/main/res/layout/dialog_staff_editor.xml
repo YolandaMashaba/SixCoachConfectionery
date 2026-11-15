@@ -20,7 +20,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:text="Create a new staff account and assign permissions."
+        android:text="Create a new staff account, assign permissions and branch."
         android:textColor="@color/bakery_text_secondary"
         android:textSize="12sp" />
 
@@ -68,6 +68,23 @@
             android:text="Admin"
             android:textColor="@color/bakery_text_primary" />
     </RadioGroup>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Bakery Branch *"
+        android:textColor="@color/bakery_text_primary"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+    <Spinner
+        android:id="@+id/spinnerStaffBranch"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginTop="6dp"
+        android:background="@drawable/bg_custom_input"
+        android:paddingHorizontal="12dp" />
 
     <com.example.sixcoachconfectionery.ui.controls.CustomInputField
         android:id="@+id/inputStaffPassword"
