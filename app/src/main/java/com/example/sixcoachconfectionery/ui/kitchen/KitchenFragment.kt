@@ -32,7 +32,7 @@ class KitchenFragment : Fragment() {
         override fun run() {
             if (isAdded) {
                 refreshOrders()
-                handler.postDelayed(this, 10000) // refresh timer every 10 sec
+                handler.postDelayed(this, 30000) // optimized to 30 sec to prevent emulator CPU/ANR load
             }
         }
     }
@@ -87,6 +87,7 @@ class KitchenFragment : Fragment() {
             emptyList(),
             onCompleteOrder = { order ->
                 lifecycleScope.launch(Dispatchers.IO) {
+                    // Complete kitchen order and main order in Firestore
                     val kOrdersResult = orderRepository.getKitchenOrders()
                     if (kOrdersResult.isSuccess) {
                         val kOrders = kOrdersResult.getOrNull() ?: emptyList()
