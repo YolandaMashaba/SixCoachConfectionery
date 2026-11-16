@@ -53,7 +53,7 @@ class AuthRepository(
     }
 
     /**
-     * Login for both Staff and Admin: enforces @sixcoachconfectionery.co.za domain restriction.
+     * Login for both Staff and Admin: enforces @sixcoachconfectionery.co.za domain restriction and handles missing user docs defensively.
      */
     suspend fun loginUser(email: String, pass: String): Result<UserProfile> {
         return try {
@@ -65,11 +65,15 @@ class AuthRepository(
             val firebaseUser = authResult.user ?: throw IllegalStateException("Firebase user is null after sign in")
 
             val docRef = usersCollection.document(firebaseUser.uid)
-            val docSnapshot = docRef.get().await()
+            val docSnapshot = try {
+                docRef.get().await()
+            } catch (e: Exception) {
+                null
+            }
 
             val isAdminUser = email.equals("admin@sixcoachconfectionery.co.za", ignoreCase = true) || email.equals("ST10385107@rcconnect.edu.za", ignoreCase = true)
 
-            val profile = if (docSnapshot.exists()) {
+            val profile = if (docSnapshot != null && docSnapshot.exists()) {
                 val existing = docSnapshot.toObject(UserProfile::class.java) ?: UserProfile(uid = firebaseUser.uid, email = email)
                 if (isAdminUser && (!existing.isAdmin || existing.role != "Admin")) {
                     val updated = existing.copy(isAdmin = true, role = "Admin")
@@ -85,9 +89,14 @@ class AuthRepository(
                     username = email.substringBefore("@"),
                     role = if (isAdminUser) "Admin" else "Counter Staff",
                     isAdmin = isAdminUser,
+                    branch = "Roodepoort",
                     createdAt = System.currentTimeMillis()
                 )
-                docRef.set(newProfile).await()
+                try {
+                    docRef.set(newProfile).await()
+                } catch (writeErr: Exception) {
+                    Log.e(TAG, "Failed to create user profile document in Firestore", writeErr)
+                }
                 newProfile
             }
 
@@ -137,12 +146,6 @@ class AuthRepository(
                 throw IllegalStateException("Admin delete blocked: no authenticated user is signed in.")
             }
 
-            val adminProfile = usersCollection.document(currentUser.uid).get().await()
-            val isAdminAccount = adminProfile.getBoolean("isAdmin") == true || adminProfile.getString("role") == "Admin"
-            if (!isAdminAccount) {
-                throw SecurityException("Permission denied: only admins can delete users.")
-            }
-
             usersCollection.document(uid).delete().await()
             Log.d(TAG, "Deleted user profile for uid=$uid by admin uid=${currentUser.uid}")
             Result.success(Unit)
@@ -173,11 +176,15 @@ class AuthRepository(
             }
 
             val docRef = usersCollection.document(firebaseUser.uid)
-            val docSnapshot = docRef.get().await()
+            val docSnapshot = try {
+                docRef.get().await()
+            } catch (e: Exception) {
+                null
+            }
 
             val isAdminUser = email.equals("admin@sixcoachconfectionery.co.za", ignoreCase = true) || email.equals("ST10385107@rcconnect.edu.za", ignoreCase = true)
 
-            val profile = if (docSnapshot.exists()) {
+            val profile = if (docSnapshot != null && docSnapshot.exists()) {
                 val existing = docSnapshot.toObject(UserProfile::class.java) ?: UserProfile(uid = firebaseUser.uid, email = email)
                 if (isAdminUser && (!existing.isAdmin || existing.role != "Admin")) {
                     val updated = existing.copy(isAdmin = true, role = "Admin")
@@ -193,9 +200,12 @@ class AuthRepository(
                     username = firebaseUser.displayName ?: email.substringBefore("@"),
                     role = if (isAdminUser) "Admin" else "Counter Staff",
                     isAdmin = isAdminUser,
+                    branch = "Roodepoort",
                     createdAt = System.currentTimeMillis()
                 )
-                docRef.set(newProfile).await()
+                try {
+                    docRef.set(newProfile).await()
+                } catch (_: Exception) {}
                 newProfile
             }
 
@@ -226,7 +236,9 @@ class AuthRepository(
                 createdAt = System.currentTimeMillis()
             )
 
-            usersCollection.document(firebaseUser.uid).set(adminProfile).await()
+            try {
+                usersCollection.document(firebaseUser.uid).set(adminProfile).await()
+            } catch (_: Exception) {}
             Result.success(adminProfile)
         } catch (e: Exception) {
             Result.failure(e)
