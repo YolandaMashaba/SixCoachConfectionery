@@ -4,7 +4,7 @@ SixCoachConfectionery is a bakery Point-of-Sale (POS), Kitchen Display System (K
 
 It uses Kotlin, Android Jetpack, Firebase Authentication, Firestore, and Google Sign-In for secure staff access and order processing.
 
-YouTube link: https://youtube.com/shorts/GkLbJgSIv_4?si=66T2o3O6PXWhMI0p
+YouTube link: [https://youtube.com/shorts/GkLbJgSIv_4?si=66T2o3O6PXWhMI0p](https://youtu.be/twU8RYTOaV4)
 
 ---
 
